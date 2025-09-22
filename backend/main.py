@@ -1,17 +1,30 @@
 # backend/main.py
 import os
 import tempfile
+import uvicorn
+import cv2
+import mediapipe as mp
+import asyncio
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse, JSONResponse
-from video_processor import start_video_loop, get_mjpeg_generator, register_client, unregister_client
+from video_processor import start_video_loop, set_event_loop, get_mjpeg_generator, register_client, unregister_client
 from db import get_recent_events
-import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="AI Surveillance System")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # или ["*"] для всех источников
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # запускаем процессор камеры при старте приложения
 @app.on_event("startup")
 def startup_event():
+    loop = asyncio.get_event_loop()
+    set_event_loop(loop)
     # можно поменять источник: 0 или rtsp://...
     start_video_loop(source=0)
 
@@ -31,8 +44,6 @@ async def analyze_video(file: UploadFile = File(...)):
         tmp_path = tmp.name
 
     # Используем тот же поток обработки: анализ через MediaPipe в клиентском режиме
-    import cv2
-    import mediapipe as mp
     mp_pose = mp.solutions.pose
 
     total_frames = 0

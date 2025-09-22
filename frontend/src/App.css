@@ -1,42 +1,63 @@
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+	max-width: 1280px;
+	margin: 0 auto;
+	padding: 2rem;
+	text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+body {
+	font-family: Inter, system-ui, Arial;
+	background: #f3f4f6;
+	margin: 0;
+	padding: 20px;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.container {
+	max-width: 980px;
+	margin: 0 auto;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 16px;
 }
 
 .card {
-  padding: 2em;
+	background: white;
+	padding: 16px;
+	border-radius: 8px;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+	margin-bottom: 12px;
 }
 
-.read-the-docs {
-  color: #888;
+button {
+	background: #2563eb;
+	color: white;
+	border: none;
+	padding: 8px 12px;
+	border-radius: 6px;
+	cursor: pointer;
+}
+
+input[type="file"] {
+	display: block;
+	margin-top: 8px;
+}
+
+img.stream {
+	max-width: 100%;
+	border-radius: 8px;
+}
+
+ul.events {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+}
+
+ul.events li {
+	padding: 8px 6px;
+	border-bottom: 1px solid #eee;
 }

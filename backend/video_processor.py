@@ -3,11 +3,10 @@ import cv2
 import threading
 import time
 import base64
-from typing import Set
 import asyncio
 import json
-
 import mediapipe as mp
+from typing import Set
 from action_recognizer import SimpleActionClassifier
 from db import log_event
 
@@ -18,6 +17,7 @@ _latest_frame_jpg = None           # bytes
 _frame_lock = threading.Lock()
 _clients = set()                    # set of WebSocket objects (FastAPI WebSocket)
 _clients_lock = threading.Lock()
+_event_loop = None
 
 # Источник камеры: 0 или rtsp://...
 CAMERA_SOURCE = 0
@@ -53,13 +53,12 @@ def broadcast_event(payload: dict):
     """
     # логируем в БД
     try:
-        log_event(payload.get("event_type", "event"), camera=payload.get("camera"), details=json.dumps(payload))
+        log_event(payload.get("event_type", "event"), 
+                  camera=payload.get("camera"),
+                  details=json.dumps(payload))
     except Exception:
         pass
 
-    # отправка (в асинхронной петле FastAPI)
-    loop = asyncio.get_event_loop()
-    to_send = []
     with _clients_lock:
         to_send = list(_clients)
 
@@ -74,15 +73,14 @@ def broadcast_event(payload: dict):
         if disconnected:
             with _clients_lock:
                 for w in disconnected:
-                    if w in _clients:
-                        _clients.remove(w)
+                    _clients.discard(w)
 
-    try:
-        # если event loop запущен — schedule
-        loop.create_task(_send_all())
-    except RuntimeError:
-        # если loop не активен (например при старте), можно проигнорировать; события будут логироваться в БД
-        pass
+    if _event_loop is not None:
+        asyncio.run_coroutine_threadsafe(_send_all(), _event_loop)
+
+def set_event_loop(loop: asyncio.AbstractEventLoop):
+    global _event_loop
+    _event_loop = loop
 
 def start_video_loop(source=CAMERA_SOURCE):
     """
@@ -90,7 +88,8 @@ def start_video_loop(source=CAMERA_SOURCE):
     """
     def _worker():
         global _latest_frame_jpg
-        cap = cv2.VideoCapture(source)
+        cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
         if not cap.isOpened():
             print("ERROR: camera source not opened:", source)
             return
