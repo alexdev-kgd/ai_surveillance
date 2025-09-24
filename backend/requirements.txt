@@ -8,3 +8,6 @@ aiofiles
 python-multipart
 requests
 websockets
+torch
+torchvision
+fvcore

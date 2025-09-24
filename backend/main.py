@@ -1,13 +1,15 @@
-# backend/main.py
 import os
 import tempfile
 import uvicorn
 import cv2
 import mediapipe as mp
-import asyncio
+import torch
+import base64
+import io
+import numpy as np
+from PIL import Image
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse, JSONResponse
-from video_processor import start_video_loop, set_event_loop, get_mjpeg_generator, register_client, unregister_client
+from video_processor import register_client, unregister_client
 from db import get_recent_events
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -20,13 +22,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# запускаем процессор камеры при старте приложения
-@app.on_event("startup")
-def startup_event():
-    loop = asyncio.get_event_loop()
-    set_event_loop(loop)
-    # можно поменять источник: 0 или rtsp://...
-    start_video_loop(source=0)
+# Загружаем видеомодель
+video_model = torch.hub.load("facebookresearch/pytorchvideo", "slow_r50", pretrained=True)
+video_model.eval()
+
+# Сколько кадров копим на один "батч"
+FRAME_WINDOW = 16
 
 @app.get("/")
 def root():
@@ -71,13 +72,6 @@ async def analyze_video(file: UploadFile = File(...)):
         "people_percent": round(frames_with_people/total_frames*100, 2) if total_frames>0 else 0
     }
 
-@app.get("/video_feed")
-def video_feed():
-    """
-    MJPEG stream; browser can render <img src="/video_feed">
-    """
-    return StreamingResponse(get_mjpeg_generator(), media_type='multipart/x-mixed-replace; boundary=frame')
-
 # WebSocket endpoint для событий
 @app.websocket("/ws/events")
 async def websocket_endpoint(websocket: WebSocket):
@@ -91,6 +85,38 @@ async def websocket_endpoint(websocket: WebSocket):
             await websocket.send_text(f"server received: {data}")
     except WebSocketDisconnect:
         unregister_client(websocket)
+
+@app.websocket("/ws/video/")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    buffer = []  # храним кадры
+
+    try:
+        while True:
+            data = await ws.receive_text()
+
+            # кадр приходит как base64 (jpeg/png)
+            img_bytes = base64.b64decode(data)
+            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            frame = np.array(img)
+
+            # resize до 224x224
+            frame = cv2.resize(frame, (224, 224))
+            buffer.append(frame)
+
+            if len(buffer) >= FRAME_WINDOW:
+                # Преобразуем в тензор (T, C, H, W)
+                video_tensor = torch.tensor(buffer).permute(1, 3, 0, 2).unsqueeze(0).float()
+                buffer = []  # очистка
+
+                with torch.no_grad():
+                    preds = video_model(video_tensor)
+
+                # Возвращаем на фронт предсказание
+                await ws.send_json({"prediction": preds.tolist()})
+
+    except WebSocketDisconnect:
+        print("Client disconnected")
 
 @app.get("/events/recent")
 def recent_events():
