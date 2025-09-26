@@ -7,11 +7,16 @@ export default function LiveStream() {
 
 	useEffect(() => {
 		// Запрос доступа к вебке
-		navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
-			if (videoRef.current) {
-				videoRef.current.srcObject = stream;
-			}
-		});
+		navigator.mediaDevices
+			.getUserMedia({
+				video: { width: 640, height: 480 },
+				audio: false,
+			})
+			.then((stream) => {
+				if (videoRef.current) {
+					videoRef.current.srcObject = stream;
+				}
+			});
 
 		// Подключение к WebSocket
 		const socket = new WebSocket("ws://127.0.0.1:8000/ws/video/");
@@ -59,8 +64,17 @@ export default function LiveStream() {
 	return (
 		<div>
 			<h3>Прямой поток (MJPEG)</h3>
-			<video ref={videoRef} autoPlay playsInline className="w-96 h-72 rounded-xl shadow-lg" />
-			<div className="mt-4 text-lg font-bold text-blue-600">{prediction ? `Prediction: ${JSON.stringify(prediction)}` : "Waiting..."}</div>
+			<video
+				ref={videoRef}
+				autoPlay
+				playsInline
+				className="w-96 h-72 rounded-xl shadow-lg"
+			/>
+			<div className="mt-4 text-lg font-bold text-blue-600">
+				{prediction
+					? `Prediction: ${JSON.stringify(prediction)}`
+					: "Waiting..."}
+			</div>
 		</div>
 	);
 }

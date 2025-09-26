@@ -106,7 +106,10 @@ async def websocket_endpoint(ws: WebSocket):
 
             if len(buffer) >= FRAME_WINDOW:
                 # Преобразуем в тензор (T, C, H, W)
-                video_tensor = torch.tensor(buffer).permute(1, 3, 0, 2).unsqueeze(0).float()
+                print(torch.tensor(buffer).shape)
+                video_tensor = torch.tensor(buffer).permute(3, 0, 1, 2).unsqueeze(0).float()
+                print(video_tensor.shape)
+                # video_tensor = torch.tensor(buffer).permute(1, 3, 0, 2).unsqueeze(0).float()
                 buffer = []  # очистка
 
                 with torch.no_grad():
