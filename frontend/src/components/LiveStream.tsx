@@ -37,6 +37,7 @@ export default function LiveStream() {
 
 		const interval = setInterval(() => {
 			if (!videoRef.current) return;
+			if (ws.readyState !== WebSocket.OPEN) return;
 
 			const canvas = document.createElement("canvas");
 			canvas.width = 224;
@@ -52,7 +53,9 @@ export default function LiveStream() {
 				const reader = new FileReader();
 				reader.onloadend = () => {
 					const base64data = (reader.result as string).split(",")[1];
-					ws.send(base64data); // шлём на сервер
+					if (ws.readyState === WebSocket.OPEN) {
+						ws.send(base64data);
+					}
 				};
 				reader.readAsDataURL(blob);
 			}, "image/jpeg");
@@ -62,18 +65,11 @@ export default function LiveStream() {
 	}, [ws]);
 
 	return (
-		<div>
+		<div className="w-50">
 			<h3>Прямой поток (MJPEG)</h3>
-			<video
-				ref={videoRef}
-				autoPlay
-				playsInline
-				className="w-96 h-72 rounded-xl shadow-lg"
-			/>
-			<div className="mt-4 text-lg font-bold text-blue-600">
-				{prediction
-					? `Prediction: ${JSON.stringify(prediction)}`
-					: "Waiting..."}
+			<video ref={videoRef} autoPlay playsInline className="w-96 h-72 rounded-xl shadow-lg" />
+			<div className="mt-4 text-lg font-bold text-blue-600 break-words">
+				{prediction ? `Prediction: ${JSON.stringify(prediction)}` : "Waiting..."}
 			</div>
 		</div>
 	);
