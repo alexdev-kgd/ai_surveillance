@@ -14,6 +14,7 @@ from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
 from video_processor import register_client, unregister_client
 from db import get_recent_events
 from fastapi.middleware.cors import CORSMiddleware
+from ultralytics import YOLO
 
 app = FastAPI(title="AI Surveillance System")
 app.add_middleware(
@@ -24,7 +25,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Загружаем видеомодель
+# Load YOLOv8 for person detection
+yolo_model = YOLO("yolov8n.pt")  # small & fast, trained on COCO
+
+# Load anomaly model
 video_model = torch.hub.load("facebookresearch/pytorchvideo", "slow_r50", pretrained=True)
 video_model.eval()
 
@@ -91,11 +95,12 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.websocket("/ws/video/")
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
-    buffer = []  # храним кадры
 
-    with open("kinetics400_labels.json") as f:
-        name_to_id = json.load(f)
-        id_to_name = {v: k.strip('"') for k, v in name_to_id.items()}
+    # buffer = []  # храним кадры
+
+    # with open("kinetics400_labels.json") as f:
+    #     name_to_id = json.load(f)
+    #     id_to_name = {v: k.strip('"') for k, v in name_to_id.items()}
 
     try:
         while True:
@@ -106,39 +111,83 @@ async def websocket_endpoint(ws: WebSocket):
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             frame = np.array(img)
 
-            # resize до 224x224
-            frame = cv2.resize(frame, (224, 224))
-            buffer.append(frame)
+            # Detect persons with YOLO
+            yolo_results = yolo_model(frame)
 
-            if len(buffer) >= FRAME_WINDOW:
-                # Преобразуем в тензор (T, C, H, W)
-                video_tensor = torch.tensor(buffer).permute(3, 0, 1, 2).unsqueeze(0).float()
-                buffer = []  # очистка
+            annotated = frame.copy()
+            detections = []
+            for r in yolo_results[0].boxes:
+                cls_id = int(r.cls)
+                if cls_id == 0:  # COCO class 0 = person
+                    x1, y1, x2, y2 = map(int, r.xyxy[0].tolist())
+                    person_crop = frame[y1:y2, x1:x2]
 
-                with torch.no_grad():
-                    preds = video_model(video_tensor)
-                    probs = F.softmax(preds, dim=-1)
-                    pred_idx = torch.argmax(probs, dim=-1).item()
-                    print(pred_idx)
-                    action_name = id_to_name[pred_idx]
-                    confidence = float(probs[0, pred_idx])
+                    # Classify crop
+                    label = anomaly_model_predict(person_crop)
 
-                    # Get top3 predictions
-                    top5 = torch.topk(preds, k=3).indices
+                    # Color: green = normal, red = suspicious
+                    color = (0, 255, 0) if label == "normal" else (0, 0, 255)
 
-                    # Map indices -> labels
-                    for idx in top5[0]:
-                        label = id_to_name[idx.item()]
-                        print(idx.item(), label)
+                    # Draw bounding box
+                    cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
+                    cv2.putText(
+                        annotated, label, (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2
+                    )
 
-                # Возвращаем на фронт предсказание
-                await ws.send_json({
-                    "prediction": action_name,
-                    "confidence": confidence
-                })
+                    detections.append({
+                        "bbox": [x1, y1, x2, y2],
+                        "label": label
+                    })
+
+            # Encode annotated frame → base64 for sending back
+            _, buffer = cv2.imencode(".jpg", annotated)
+            frame_b64 = base64.b64encode(buffer).decode("utf-8")
+
+            await ws.send_json({
+                "detections": detections,
+                "frame": frame_b64
+            })
+            
+            # # resize до 224x224
+            # frame = cv2.resize(frame, (224, 224))
+            # buffer.append(frame)
+
+            # if len(buffer) >= FRAME_WINDOW:
+            #     # Преобразуем в тензор (T, C, H, W)
+            #     video_tensor = torch.tensor(buffer).permute(3, 0, 1, 2).unsqueeze(0).float()
+            #     buffer = []  # очистка
+
+            #     with torch.no_grad():
+            #         preds = video_model(video_tensor)
+            #         probs = F.softmax(preds, dim=-1)
+            #         pred_idx = torch.argmax(probs, dim=-1).item()
+            #         print(pred_idx)
+            #         action_name = id_to_name[pred_idx]
+            #         confidence = float(probs[0, pred_idx])
+
+            #         # Get top3 predictions
+            #         top5 = torch.topk(preds, k=3).indices
+
+            #         # Map indices -> labels
+            #         for idx in top5[0]:
+            #             label = id_to_name[idx.item()]
+            #             print(idx.item(), label)
+
+            #     # Возвращаем на фронт предсказание
+            #     await ws.send_json({
+            #         "prediction": label,
+            #         "confidence": confidence
+            #     })
 
     except WebSocketDisconnect:
         print("Client disconnected")
+
+def anomaly_model_predict(crop):
+    # Placeholder for actual anomaly detection logic
+    # For demo purposes, randomly return "normal" or "suspicious"
+    import random
+    return random.choice(["normal", "suspicious"])
 
 @app.get("/events/recent")
 def recent_events():
