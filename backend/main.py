@@ -15,6 +15,7 @@ from video_processor import register_client, unregister_client
 from db import get_recent_events
 from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
+import torch.nn as nn
 
 app = FastAPI(title="AI Surveillance System")
 app.add_middleware(
@@ -29,7 +30,10 @@ app.add_middleware(
 yolo_model = YOLO("yolov8n.pt")  # small & fast, trained on COCO
 
 # Load anomaly model
-video_model = torch.hub.load("facebookresearch/pytorchvideo", "slow_r50", pretrained=True)
+video_model = torch.hub.load("facebookresearch/pytorchvideo", "slow_r50", pretrained=False)
+video_model.blocks[-1].proj = nn.Linear(video_model.blocks[-1].proj.in_features, 1)
+checkpoint = torch.load("suspicious_actions.pth", map_location="cpu")
+video_model.load_state_dict(checkpoint["model_state_dict"])
 video_model.eval()
 
 # Сколько кадров копим на один "батч"
@@ -96,11 +100,11 @@ async def websocket_endpoint(websocket: WebSocket):
 async def websocket_endpoint(ws: WebSocket):
     await ws.accept()
 
-    # buffer = []  # храним кадры
+    buffer = []  # храним кадры
 
-    # with open("kinetics400_labels.json") as f:
-    #     name_to_id = json.load(f)
-    #     id_to_name = {v: k.strip('"') for k, v in name_to_id.items()}
+    with open("kinetics400_labels.json") as f:
+        name_to_id = json.load(f)
+        id_to_name = {v: k.strip('"') for k, v in name_to_id.items()}
 
     try:
         while True:
@@ -110,6 +114,8 @@ async def websocket_endpoint(ws: WebSocket):
             img_bytes = base64.b64decode(data)
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             frame = np.array(img)
+
+            # ========= YOLO =========
 
             # Detect persons with YOLO
             yolo_results = yolo_model(frame)
@@ -150,36 +156,38 @@ async def websocket_endpoint(ws: WebSocket):
                 "frame": frame_b64
             })
             
-            # # resize до 224x224
-            # frame = cv2.resize(frame, (224, 224))
-            # buffer.append(frame)
+            # ========= Anomaly Detection =========
+            
+            # resize до 224x224
+            frame = cv2.resize(frame, (224, 224))
+            buffer.append(frame)
 
-            # if len(buffer) >= FRAME_WINDOW:
-            #     # Преобразуем в тензор (T, C, H, W)
-            #     video_tensor = torch.tensor(buffer).permute(3, 0, 1, 2).unsqueeze(0).float()
-            #     buffer = []  # очистка
+            if len(buffer) >= FRAME_WINDOW:
+                # Преобразуем в тензор (T, C, H, W)
+                video_tensor = torch.tensor(buffer).permute(3, 0, 1, 2).unsqueeze(0).float()
+                buffer = []  # очистка
 
-            #     with torch.no_grad():
-            #         preds = video_model(video_tensor)
-            #         probs = F.softmax(preds, dim=-1)
-            #         pred_idx = torch.argmax(probs, dim=-1).item()
-            #         print(pred_idx)
-            #         action_name = id_to_name[pred_idx]
-            #         confidence = float(probs[0, pred_idx])
+                with torch.no_grad():
+                    preds = video_model(video_tensor)
+                    probs = F.softmax(preds, dim=-1)
+                    pred_idx = torch.argmax(probs, dim=-1).item()
+                    print(pred_idx)
+                    action_name = id_to_name[pred_idx]
+                    confidence = float(probs[0, pred_idx])
 
-            #         # Get top3 predictions
-            #         top5 = torch.topk(preds, k=3).indices
+                    # Get top3 predictions
+                    top5 = torch.topk(preds, k=3).indices
 
-            #         # Map indices -> labels
-            #         for idx in top5[0]:
-            #             label = id_to_name[idx.item()]
-            #             print(idx.item(), label)
+                    # Map indices -> labels
+                    for idx in top5[0]:
+                        label = id_to_name[idx.item()]
+                        print(idx.item(), label)
 
-            #     # Возвращаем на фронт предсказание
-            #     await ws.send_json({
-            #         "prediction": label,
-            #         "confidence": confidence
-            #     })
+                # Возвращаем на фронт предсказание
+                await ws.send_json({
+                    "prediction": label,
+                    "confidence": confidence
+                })
 
     except WebSocketDisconnect:
         print("Client disconnected")
