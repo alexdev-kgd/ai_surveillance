@@ -126,7 +126,7 @@ async def websocket_endpoint(ws: WebSocket):
                     label = anomaly_model_predict(person_crop)
 
                     # Color: green = normal, red = suspicious
-                    color = (0, 255, 0) if label == "normal" else (0, 0, 255)
+                    color = (0, 255, 0) if label == "normal" else (255, 0, 0)
 
                     # Draw bounding box
                     cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
@@ -141,7 +141,8 @@ async def websocket_endpoint(ws: WebSocket):
                     })
 
             # Encode annotated frame → base64 for sending back
-            _, buffer = cv2.imencode(".jpg", annotated)
+            rgb_annotated_frame = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+            _, buffer = cv2.imencode(".jpg", rgb_annotated_frame)
             frame_b64 = base64.b64encode(buffer).decode("utf-8")
 
             await ws.send_json({
