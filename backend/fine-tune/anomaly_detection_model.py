@@ -11,12 +11,15 @@ from pytorchvideo.models.hub import slow_r50   # still use pretrained SlowFast b
 class_names = ["normal", "fall_floor", "hit", "jump", "kick", "punch", "run", "shoot_gun"]   # extend later
 
 class NormalizeVideo:
-    def __init__(self, mean, std):
+    def __init__(self, mean, std, device="cpu"):
         self.mean = torch.tensor(mean).view(3, 1, 1, 1)
         self.std = torch.tensor(std).view(3, 1, 1, 1)
 
     def __call__(self, tensor):
-        return (tensor - self.mean) / self.std
+        # Make sure tensors are on the same device
+        mean = self.mean.to(tensor.device)
+        std = self.std.to(tensor.device)
+        return (tensor - mean) / std
 
 # ----------------------------
 # Video Dataset with OpenCV
@@ -64,7 +67,8 @@ class VideoDataset(Dataset):
         while len(frames) < self.clip_len:
             frames.append(frames[-1])
 
-        video = torch.tensor(frames).permute(3, 0, 1, 2).float() / 255.0  # (C, T, H, W)
+        import numpy as np
+        video = torch.from_numpy(np.array(frames)).permute(3, 0, 1, 2).float() / 255.0  # (C, T, H, W)
 
         if self.transform:
             video = self.transform(video)
@@ -76,13 +80,17 @@ class VideoDataset(Dataset):
 # Training function
 # ----------------------------
 def train_model():
-    transform = NormalizeVideo((0.45, 0.45, 0.45), (0.225, 0.225, 0.225))
+    print(torch.__file__)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    torch.backends.cudnn.benchmark = True
+
+    transform = NormalizeVideo((0.45, 0.45, 0.45), (0.225, 0.225, 0.225), device=device)
 
     train_dataset = VideoDataset("../dataset/train", class_names, clip_len=16, transform=transform)
     val_dataset   = VideoDataset("../dataset/val",   class_names, clip_len=16, transform=transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=0)
-    val_loader   = DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=0)
+    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
+    val_loader   = DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=4)
 
     # Load pretrained Slow R50 backbone
     model = slow_r50(pretrained=True)
@@ -96,14 +104,13 @@ def train_model():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3)
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     model = model.to(device)
 
     # Training loop
     for epoch in range(10):
         model.train()
         for videos, labels in train_loader:
-            videos, labels = videos.to(device), labels.to(device)
+            videos, labels = videos.to(device, non_blocking=True), labels.to(device, non_blocking=True)
             optimizer.zero_grad()
             outputs = model(videos)
             loss = criterion(outputs, labels)
@@ -115,7 +122,7 @@ def train_model():
         correct, total = 0, 0
         with torch.no_grad():
             for videos, labels in val_loader:
-                videos, labels = videos.to(device), labels.to(device)
+                videos, labels = videos.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 outputs = model(videos)
                 _, predicted = torch.max(outputs, 1)
                 correct += (predicted == labels).sum().item()
