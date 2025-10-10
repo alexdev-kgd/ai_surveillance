@@ -6,8 +6,8 @@ export default function LiveStream() {
 	const [ws, setWs] = useState<WebSocket | null>(null);
 	const [prediction, setPrediction] = useState<any>(null);
 
+	// Websocket Setup and Response Handling
 	useEffect(() => {
-		// WebSocket setup
 		const socket = new WebSocket("ws://127.0.0.1:8000/ws/video/");
 		socket.onmessage = (event) => {
 			const msg = JSON.parse(event.data);
@@ -32,32 +32,30 @@ export default function LiveStream() {
 	// capture frames from webcam and send
 	useEffect(() => {
 		if (!ws) return;
-		navigator.mediaDevices
-			.getUserMedia({ video: true, audio: false })
-			.then((stream) => {
-				if (videoRef.current) {
-					videoRef.current.srcObject = stream;
-				}
-				setInterval(() => {
-					if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
+		navigator.mediaDevices.getUserMedia({ video: true, audio: false }).then((stream) => {
+			if (videoRef.current) {
+				videoRef.current.srcObject = stream;
+			}
+			setInterval(() => {
+				if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
 
-					const canvas = document.createElement("canvas");
-					canvas.width = 224;
-					canvas.height = 224;
-					const ctx = canvas.getContext("2d");
-					ctx?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+				const canvas = document.createElement("canvas");
+				canvas.width = 224;
+				canvas.height = 224;
+				const ctx = canvas.getContext("2d");
+				ctx?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 
-					canvas.toBlob((blob) => {
-						if (!blob) return;
-						const reader = new FileReader();
-						reader.onloadend = () => {
-							const base64data = (reader.result as string).split(",")[1];
-							ws.send(base64data);
-						};
-						reader.readAsDataURL(blob);
-					}, "image/jpeg");
-				}, 200);
-			});
+				canvas.toBlob((blob) => {
+					if (!blob) return;
+					const reader = new FileReader();
+					reader.onloadend = () => {
+						const base64data = (reader.result as string).split(",")[1];
+						ws.send(base64data);
+					};
+					reader.readAsDataURL(blob);
+				}, "image/jpeg");
+			}, 200);
+		});
 	}, [ws]);
 
 	return (
@@ -68,9 +66,7 @@ export default function LiveStream() {
 			<canvas ref={canvasRef} className="w-96 h-72 rounded-xl shadow-lg" />
 
 			<div className="mt-4 text-lg font-bold text-blue-600 break-words">
-				{prediction
-					? `Prediction: ${JSON.stringify(prediction)}`
-					: "Waiting..."}
+				{prediction ? `Prediction: ${JSON.stringify(prediction)}` : "Waiting..."}
 			</div>
 		</div>
 	);

@@ -1,7 +1,7 @@
 import torch
 import cv2
 import numpy as np
-from models.anomaly_model import video_model
+from models.anomaly_model import video_model, class_names
 from config import FRAME_WINDOW
 
 frame_buffer = []
@@ -15,13 +15,30 @@ def anomaly_model_predict(frame: np.ndarray):
     if len(frame_buffer) < FRAME_WINDOW:
         return "normal", 0.0
 
-    video_tensor = torch.tensor(frame_buffer).permute(3, 0, 1, 2).unsqueeze(0).float()
+    # Efficient stacking: combine all frames into one numpy array
+    # shape: (T, H, W, C)
+    video_np = np.stack(frame_buffer, axis=0)
+
+    # Convert to torch tensor: (1, C, T, H, W)
+    video_tensor = torch.from_numpy(video_np).permute(3, 0, 1, 2).unsqueeze(0).float()
     frame_buffer.clear()
 
     with torch.no_grad():
-        preds = video_model(video_tensor)
-        probs = torch.sigmoid(preds)
-        confidence = float(probs.item())
-        label = "suspicious" if confidence > 0.5 else "normal"
+        logits = video_model(video_tensor)
+        probs = torch.softmax(logits, dim=-1)
+        topk = torch.topk(probs[0], 3)
+        top_actions = [(class_names[i], float(p)) for p, i in zip(topk.values, topk.indices)]
 
-    return label, confidence
+        # Log top actions
+        print("[Detected Actions]")
+        for act, conf in top_actions:
+            print(f"  • {act}: {conf:.3f}")
+
+        # Determine label
+        label, confidence = top_actions[0]
+        if label != "normal":
+            label_out = "suspicious"
+        else:
+            label_out = "normal"
+
+    return label_out, confidence

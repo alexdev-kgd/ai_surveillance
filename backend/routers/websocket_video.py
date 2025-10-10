@@ -20,17 +20,11 @@ async def websocket_video(ws: WebSocket):
         id_to_name = {v: k.strip('"') for k, v in name_to_id.items()}
 
     try:
-        frame_count = 0
         while True:
             data = await ws.receive_text()
             img_bytes = base64.b64decode(data)
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             frame = np.array(img)
-
-            frame_count += 1
-
-            if frame_count % 3 != 0:  # process every 3rd frame
-                continue
 
             yolo_results = yolo_model(frame)
             annotated = frame.copy()
@@ -42,7 +36,6 @@ async def websocket_video(ws: WebSocket):
                     x1, y1, x2, y2 = map(int, r.xyxy[0].tolist())
                     person_crop = frame[y1:y2, x1:x2]
                     label, _ = anomaly_model_predict(person_crop)
-
                     color = (0, 255, 0) if label == "normal" else (255, 0, 0)
                     cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(annotated, label, (x1, y1 - 10),

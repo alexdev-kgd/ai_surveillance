@@ -1,2 +1,3 @@
 backend/suspicious_actions.pth filter=lfs diff=lfs merge=lfs -text
 suspicious_actions.pth filter=lfs diff=lfs merge=lfs -text
+*.onnx filter=lfs diff=lfs merge=lfs -text

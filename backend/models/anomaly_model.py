@@ -8,3 +8,6 @@ video_model.blocks[-1].proj = nn.Linear(video_model.blocks[-1].proj.in_features,
 checkpoint = torch.load(ANOMALY_MODEL_PATH, map_location="cpu")
 video_model.load_state_dict(checkpoint["model_state_dict"])
 video_model.eval()
+
+# Restore class names
+class_names = checkpoint.get("class_names", None)
