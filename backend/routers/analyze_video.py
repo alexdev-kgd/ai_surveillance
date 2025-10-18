@@ -1,6 +1,7 @@
 import os
 import tempfile
 from fastapi import APIRouter, UploadFile, File
+from fastapi.responses import JSONResponse
 from services.media_utils import analyze_video_file
 
 router = APIRouter(prefix="/analyze", tags=["Video Analysis"])
@@ -14,4 +15,5 @@ async def analyze_video(file: UploadFile = File(...)):
 
     result = analyze_video_file(tmp_path)
     os.remove(tmp_path)
-    return result
+
+    return JSONResponse(content=result)

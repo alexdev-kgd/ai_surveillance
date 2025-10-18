@@ -1,9 +1,8 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from routers import analyze_video, websocket_events, websocket_video
 
 app = FastAPI(title="AI Surveillance System")
 
+from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,9 +12,19 @@ app.add_middleware(
 )
 
 # Register routers
+from routers import analyze_video, websocket_events, websocket_video
 app.include_router(analyze_video.router)
 app.include_router(websocket_events.router)
 app.include_router(websocket_video.router)
+
+
+# Ensure static folders exist
+import os
+os.makedirs("static/processed", exist_ok=True)
+
+# Mount static files
+from fastapi.staticfiles import StaticFiles
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 @app.get("/")
 def root():
