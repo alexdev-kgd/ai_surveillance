@@ -1,14 +1,22 @@
-import os
 import cv2
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
+from pytorchvideo.models.hub import x3d_m
 import torch.optim as optim
-from pytorchvideo.models.hub import slow_r50   # still use pretrained SlowFast backbone
 
-# Define your action classes
-class_names = ["normal", "fall_floor", "hit", "jump", "kick", "punch", "run", "shoot_gun"]   # extend later
+import sys, os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from services.device import device
+
+class_names = ["normal", "fall_floor", "hit", "jump", "kick", "punch", "run", "shoot_gun"]
+
+epochs = 3
+learning_rate = 1e-4
+weight_decay = 1e-2
+batch_size = 4
+clip_len = 32 # Number of frames per clip
 
 class NormalizeVideo:
     def __init__(self, mean, std, device="cpu"):
@@ -37,7 +45,8 @@ class VideoDataset(Dataset):
                 continue
             for f in os.listdir(cls_dir):
                 if f.lower().endswith((".mp4", ".avi", ".mov", ".mkv")):
-                    self.samples.append((os.path.join(cls_dir, f), self.class_to_idx[cls]))
+                    video_path = os.path.join(cls_dir, f)
+                    self.samples.append((video_path, self.class_to_idx[cls]))
 
     def __len__(self):
         return len(self.samples)
@@ -75,25 +84,22 @@ class VideoDataset(Dataset):
 
         return video, label
 
-
 # ----------------------------
 # Training function
 # ----------------------------
 def train_model():
-    print(torch.__file__)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     torch.backends.cudnn.benchmark = True
+    print(f"Using device: {device}")
 
     transform = NormalizeVideo((0.45, 0.45, 0.45), (0.225, 0.225, 0.225), device=device)
 
-    train_dataset = VideoDataset("../dataset/train", class_names, clip_len=16, transform=transform)
-    val_dataset   = VideoDataset("../dataset/val",   class_names, clip_len=16, transform=transform)
+    train_dataset = VideoDataset("../dataset/train", class_names, clip_len=clip_len, transform=transform)
+    val_dataset   = VideoDataset("../dataset/val",   class_names, clip_len=clip_len, transform=transform)
 
-    train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True, num_workers=4)
-    val_loader   = DataLoader(val_dataset, batch_size=4, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
+    val_loader   = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
 
-    # Load pretrained Slow R50 backbone
-    model = slow_r50(pretrained=True)
+    model = x3d_m(pretrained=True)
     model.blocks[-1].proj = nn.Linear(model.blocks[-1].proj.in_features, len(class_names))
 
     # Freeze everything except classifier
@@ -102,12 +108,12 @@ def train_model():
             param.requires_grad = False
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=1e-3)
+    optimizer = optim.AdamW(filter(lambda p: p.requires_grad, model.parameters()), lr=learning_rate, weight_decay=weight_decay)
 
     model = model.to(device)
 
     # Training loop
-    for epoch in range(10):
+    for epoch in range(epochs):
         model.train()
         for videos, labels in train_loader:
             videos, labels = videos.to(device, non_blocking=True), labels.to(device, non_blocking=True)
