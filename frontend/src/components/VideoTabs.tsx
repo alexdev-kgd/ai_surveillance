@@ -16,7 +16,12 @@ interface TabPanelProps {
 
 function CustomTabPanel({ children, value, index }: TabPanelProps) {
 	return (
-		<div role="tabpanel" hidden={value !== index} id={`tabpanel-${index}`} aria-labelledby={`tab-${index}`}>
+		<div
+			role="tabpanel"
+			hidden={value !== index}
+			id={`tabpanel-${index}`}
+			aria-labelledby={`tab-${index}`}
+		>
 			{value === index && <Box sx={{ p: 2 }}>{children}</Box>}
 		</div>
 	);
@@ -25,11 +30,17 @@ function CustomTabPanel({ children, value, index }: TabPanelProps) {
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
 	result: any;
-	events: Array<{ event_type: string; camera: string; timestamp?: string; details?: string }>;
+	events: Array<{
+		event_type: string;
+		camera: string;
+		timestamp?: string;
+		details?: string;
+	}>;
 }
 
 export default function VideoTabs({ setResult, result, events }: Props) {
 	const [value, setValue] = useState(0);
+	const [loading, setLoading] = useState(false);
 
 	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
 		setValue(newValue);
@@ -38,15 +49,34 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 	return (
 		<Box sx={{ width: "100%" }}>
 			<Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-				<Tabs value={value} onChange={handleChange} aria-label="video tabs" centered>
-					<Tab icon={<CloudUploadIcon />} iconPosition="start" label="Загрузка видео" id="tab-0" />
-					<Tab icon={<VideocamIcon />} iconPosition="start" label="Веб-камера" id="tab-1" />
+				<Tabs
+					value={value}
+					onChange={handleChange}
+					aria-label="video tabs"
+					centered
+				>
+					<Tab
+						icon={<CloudUploadIcon />}
+						iconPosition="start"
+						label="Загрузка видео"
+						id="tab-0"
+					/>
+					<Tab
+						icon={<VideocamIcon />}
+						iconPosition="start"
+						label="Веб-камера"
+						id="tab-1"
+					/>
 				</Tabs>
 			</Box>
 
 			<CustomTabPanel value={value} index={0}>
-				<UploadForm setResult={setResult} />
-				<Results result={result} />
+				<UploadForm
+					setResult={setResult}
+					setLoading={setLoading}
+					loading={loading}
+				/>
+				{!loading && <Results result={result} />}
 			</CustomTabPanel>
 			<CustomTabPanel value={value} index={1}>
 				<div style={{ flex: 1 }}>

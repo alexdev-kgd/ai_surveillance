@@ -3,11 +3,12 @@ import axios from "axios";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
+	setLoading: React.Dispatch<React.SetStateAction<boolean>>;
+	loading: boolean;
 }
 
-export default function UploadForm({ setResult }: Props) {
+export default function UploadForm({ setResult, setLoading, loading }: Props) {
 	const [file, setFile] = useState<File | null>(null);
-	const [loading, setLoading] = useState(false);
 	const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
 	const submit = async (e: React.FormEvent) => {
@@ -39,6 +40,7 @@ export default function UploadForm({ setResult }: Props) {
 					<input
 						type="file"
 						accept="video/*"
+						disabled={loading}
 						onChange={(e) => setFile(e.target.files?.[0] ?? null)}
 					/>
 					<button type="submit" disabled={loading}>
@@ -47,8 +49,9 @@ export default function UploadForm({ setResult }: Props) {
 				</div>
 			</form>
 
-			{videoUrl && (
+			{videoUrl && !loading && (
 				<video
+					className="annotated-video"
 					src={videoUrl}
 					controls
 					style={{ marginTop: 16, maxWidth: "100%", borderRadius: 8 }}

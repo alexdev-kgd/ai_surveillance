@@ -18,7 +18,7 @@ def analyze_video_file(path: str):
     fps = cap.get(cv2.CAP_PROP_FPS)
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+    fourcc = cv2.VideoWriter_fourcc(*"avc1")
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     total_frames = 0
@@ -30,7 +30,7 @@ def analyze_video_file(path: str):
             break
 
         total_frames += 1
-        yolo_results = yolo_model(frame)
+        yolo_results = yolo_model.predict(frame, conf=0.2)
         annotated_frame = frame.copy()
 
         for r in yolo_results[0].boxes:
@@ -67,6 +67,7 @@ def analyze_video_file(path: str):
 
     return {
         "total_frames": total_frames,
+        "fps": fps,
         "detections": detections_summary,
         "video_path": f"/static/processed/{output_filename}"
     }
