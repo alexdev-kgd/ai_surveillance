@@ -39,6 +39,8 @@ def analyze_video_file(path: str):
                 x1, y1, x2, y2 = map(int, r.xyxy[0].tolist())
                 person_crop = frame[y1:y2, x1:x2]
                 img = cv2.resize(person_crop, (224, 224))
+
+                # Action prediction
                 label, confidence = anomaly_model_predict(img)
                 color = (0, 255, 0) if label == "normal" else (0, 0, 255)
 
@@ -57,7 +59,7 @@ def analyze_video_file(path: str):
                     "frame": total_frames,
                     "bbox": [x1, y1, x2, y2],
                     "label": label,
-                    "confidence": confidence
+                    "confidence": confidence,
                 })
 
         out.write(annotated_frame)
