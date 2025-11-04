@@ -5,7 +5,6 @@ import numpy as np
 import cv2
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from PIL import Image
-from models.yolo_detector import yolo_model
 from services.anomaly_predictor import anomaly_model_predict
 from config import KINETICS_LABELS
 
@@ -26,23 +25,16 @@ async def websocket_video(ws: WebSocket):
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             frame = np.array(img)
 
-            yolo_results = yolo_model(frame)
-            annotated = frame.copy()
+            annotatannotated_frameed = frame.copy()
             detections = []
 
-            for r in yolo_results[0].boxes:
-                cls_id = int(r.cls)
-                if cls_id == 0:
-                    x1, y1, x2, y2 = map(int, r.xyxy[0].tolist())
-                    person_crop = frame[y1:y2, x1:x2]
-                    label, _ = anomaly_model_predict(person_crop)
-                    color = (0, 255, 0) if label == "normal" else (255, 0, 0)
-                    cv2.rectangle(annotated, (x1, y1), (x2, y2), color, 2)
-                    cv2.putText(annotated, label, (x1, y1 - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                    detections.append({"bbox": [x1, y1, x2, y2], "label": label})
+            label, _ = anomaly_model_predict(annotated_frame)
+            color = (0, 255, 0) if label == "normal" else (255, 0, 0)
+            cv2.putText(annotated_frame, label, (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            detections.append({"label": label})
 
-            rgb_annotated = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
+            rgb_annotated = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
             _, encoded = cv2.imencode(".jpg", rgb_annotated)
             frame_b64 = base64.b64encode(encoded).decode("utf-8")
 
