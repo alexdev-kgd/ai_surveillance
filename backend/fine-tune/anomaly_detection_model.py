@@ -9,6 +9,7 @@ import mediapipe as mp
 import sys, os
 import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from utils.plot_utils import plot_training_metrics
 from services.device import device
 
 class_names = ["normal", "fall_floor", "hit", "jump", "kick", "punch", "run", "shoot_gun"]
@@ -160,9 +161,14 @@ def train_model():
 
     model = model.to(device)
 
+    # Metric tracking
+    train_losses, val_losses, val_accuracies = [], [], []
+
     # Training loop
     for epoch in range(epochs):
         model.train()
+        running_loss = 0.0
+
         for videos, labels in train_loader:
             videos, labels = videos.to(device, non_blocking=True), labels.to(device, non_blocking=True)
             optimizer.zero_grad()
@@ -170,25 +176,40 @@ def train_model():
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
+            running_loss += loss.item()
+
+        avg_train_loss = running_loss / len(train_loader)
+        train_losses.append(avg_train_loss)
 
         # Validation
         model.eval()
         correct, total = 0, 0
+        val_loss_epoch = 0.0
         with torch.no_grad():
             for videos, labels in val_loader:
                 videos, labels = videos.to(device, non_blocking=True), labels.to(device, non_blocking=True)
                 outputs = model(videos)
+
+                loss = criterion(outputs, labels)
+                val_loss_epoch += loss.item()
+
                 _, predicted = torch.max(outputs, 1)
                 correct += (predicted == labels).sum().item()
                 total += labels.size(0)
 
-        print(f"Epoch {epoch+1}, Val Accuracy: {100*correct/total:.2f}%")
+        val_loss_epoch /= len(val_loader)
+        val_losses.append(val_loss_epoch)
+        val_acc = 100 * correct / total
+        val_accuracies.append(val_acc)
+
+        print(f"Epoch {epoch+1}/{epochs} | Train Loss: {avg_train_loss:.4f} | Val Loss: {val_loss_epoch:.4f} | Val Acc: {val_acc:.2f}%")
+
+    plot_training_metrics(train_losses, val_losses, val_accuracies)
 
     torch.save({
         "model_state_dict": model.state_dict(),
         "class_names": class_names
     }, "suspicious_actions.pth")
-
 
 if __name__ == "__main__":
     train_model()
