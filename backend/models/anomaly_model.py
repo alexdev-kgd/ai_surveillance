@@ -7,7 +7,7 @@ from services.device import device
 video_model = torch.hub.load("facebookresearch/pytorchvideo", "x3d_m", pretrained=False)
 
 # Add classifier for 9 classes
-video_model.blocks[-1].proj = nn.Linear(video_model.blocks[-1].proj.in_features, 8)
+video_model.blocks[-1].proj = nn.Linear(video_model.blocks[-1].proj.in_features, 9)
 
 # Find the first Conv3d layer (inside Conv2plus1d)
 first_block = video_model.blocks[0]
