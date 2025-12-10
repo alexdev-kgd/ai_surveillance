@@ -1,29 +1,35 @@
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, DateTime, select
 from sqlalchemy.sql import func
+from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
-DATABASE_URL = "sqlite:///./ais_events.db"  # можно заменить на postgresql://user:pass@host/db
+DATABASE_URL = "postgresql://postgres:admin@127.0.0.1:5433/ai_surveillance_db"
 
-engine: Engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-metadata = MetaData()
+engine: Engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+# metadata = MetaData()
 
-events = Table(
-    "events", metadata,
-    Column("id", Integer, primary_key=True),
-    Column("event_type", String, nullable=False),
-    Column("camera", String, nullable=True),
-    Column("details", String, nullable=True),
-    Column("timestamp", DateTime, server_default=func.now())
-)
+class Event(Base):
+    __tablename__ = "events"
 
-metadata.create_all(engine)
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String, nullable=False)
+    camera = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow)
+    details = Column(String, nullable=True)
 
-def log_event(event_type: str, camera: str = None, details: str = None):
-    with engine.begin() as conn:
-        conn.execute(events.insert().values(event_type=event_type, camera=camera, details=details))
+Base.metadata.create_all(engine)
 
-def get_recent_events(limit: int = 50):
-    with engine.begin() as conn:
-        q = select(events).order_by(events.c.timestamp.desc()).limit(limit)
-        res = conn.execute(q).mappings().all()
-        return [dict(r) for r in res]
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# def log_event(event_type: str, camera: str = None, details: str = None):
+#     with engine.begin() as conn:
+#         conn.execute(events.insert().values(event_type=event_type, camera=camera, details=details))

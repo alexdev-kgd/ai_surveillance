@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { Tabs, Tab, Box } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import VideocamIcon from "@mui/icons-material/Videocam";
+import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 
 import UploadForm from "./UploadForm";
 import Results from "./Results";
 import LiveStream from "./LiveStream";
 import EventList from "./EventList";
+import EventLogs from "./EventLogs";
 
 interface TabPanelProps {
 	children?: React.ReactNode;
@@ -67,6 +69,12 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 						label="Веб-камера"
 						id="tab-1"
 					/>
+					<Tab
+						icon={<FormatListBulletedIcon />}
+						iconPosition="start"
+						label="Журнал событий"
+						id="tab-2"
+					/>
 				</Tabs>
 			</Box>
 
@@ -85,6 +93,9 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 				<div style={{ width: 320 }}>
 					<EventList events={events} />
 				</div>
+			</CustomTabPanel>
+			<CustomTabPanel value={value} index={2}>
+				<EventLogs />
 			</CustomTabPanel>
 		</Box>
 	);

@@ -6,10 +6,24 @@ export default function LiveStream() {
 	const [ws, setWs] = useState<WebSocket | null>(null);
 	const [prediction, setPrediction] = useState<any>(null);
 
-	// Websocket Setup and Response Handling
+	// Create WebSocket ONCE
 	useEffect(() => {
 		const socket = new WebSocket("ws://127.0.0.1:8000/ws/video/");
-		socket.onmessage = (event) => {
+		setWs(socket);
+
+		socket.onopen = () => console.log("WebSocket connected");
+		socket.onclose = () => console.log("WebSocket closed");
+		socket.onerror = (err) => console.error("WebSocket error", err);
+
+		// Cleanup on unmount
+		return () => socket.close();
+	}, []);
+
+	// Handle messages
+	useEffect(() => {
+		if (!ws) return;
+
+		ws.onmessage = (event) => {
 			const msg = JSON.parse(event.data);
 			setPrediction(msg.prediction);
 
@@ -25,9 +39,7 @@ export default function LiveStream() {
 				img.src = "data:image/jpeg;base64," + msg.frame;
 			}
 		};
-		setWs(socket);
-		return () => socket.close();
-	}, []);
+	}, [ws]);
 
 	// capture frames from webcam and send
 	useEffect(() => {
@@ -72,7 +84,8 @@ export default function LiveStream() {
 			}
 		};
 
-		startCamera();
+		if (ws.readyState === WebSocket.OPEN) startCamera();
+		else ws.onopen = startCamera;
 	}, [ws]);
 
 	return (
