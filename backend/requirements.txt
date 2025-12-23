@@ -4,6 +4,7 @@ opencv-python
 mediapipe
 numpy
 sqlalchemy
+psycopg2
 aiofiles
 python-multipart
 requests

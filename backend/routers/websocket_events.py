@@ -1,6 +1,5 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from video_processor import register_client, unregister_client
-from db import get_recent_events
 
 router = APIRouter(tags=["WebSocket Events"])
 
@@ -15,6 +14,3 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         unregister_client(websocket)
 
-@router.get("/events/recent")
-def recent_events():
-    return get_recent_events(limit=50)

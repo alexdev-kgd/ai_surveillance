@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import VideoTabs from "./components/VideoTabs";
-import axios from "axios";
 
 interface Event {
 	event_type: string;
@@ -15,10 +14,6 @@ export default function App() {
 	const wsRef = useRef<WebSocket | null>(null);
 
 	useEffect(() => {
-		axios
-			.get<Event[]>("http://127.0.0.1:8000/events/recent")
-			.then((res) => setEvents(res.data || []));
-
 		const ws = new WebSocket("ws://127.0.0.1:8000/ws/events");
 		ws.onopen = () => console.log("ws open");
 		ws.onmessage = (event) => {
