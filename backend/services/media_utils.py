@@ -2,7 +2,6 @@ import cv2
 import os
 import numpy as np
 from datetime import datetime
-from models.yolo_detector import yolo_model
 from services.anomaly_predictor import anomaly_model_predict
 
 STATIC_DIR = "static/processed"
@@ -30,37 +29,26 @@ def analyze_video_file(path: str):
             break
 
         total_frames += 1
-        yolo_results = yolo_model.predict(frame, conf=0.2)
         annotated_frame = frame.copy()
 
-        for r in yolo_results[0].boxes:
-            cls_id = int(r.cls)
-            if cls_id == 0:  # person
-                x1, y1, x2, y2 = map(int, r.xyxy[0].tolist())
-                person_crop = frame[y1:y2, x1:x2]
-                img = cv2.resize(person_crop, (224, 224))
+        # Action prediction
+        label, confidence = anomaly_model_predict(annotated_frame)
+        color = (0, 255, 0) if label == "normal" else (0, 0, 255)
+        cv2.putText(
+            annotated_frame,
+            f"{label} ({confidence:.2f})",
+            (10, 20),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            color,
+            2,
+        )
 
-                # Action prediction
-                label, confidence = anomaly_model_predict(img)
-                color = (0, 255, 0) if label == "normal" else (0, 0, 255)
-
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                cv2.putText(
-                    annotated_frame,
-                    f"{label} ({confidence:.2f})",
-                    (x1, y1 - 10),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,
-                    color,
-                    2,
-                )
-
-                detections_summary.append({
-                    "frame": total_frames,
-                    "bbox": [x1, y1, x2, y2],
-                    "label": label,
-                    "confidence": confidence,
-                })
+        detections_summary.append({
+            "frame": total_frames,
+            "label": label,
+            "confidence": confidence,
+        })
 
         out.write(annotated_frame)
 
