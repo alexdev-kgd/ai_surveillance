@@ -6,9 +6,9 @@ import cv2
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from PIL import Image
 from services.anomaly_predictor import anomaly_model_predict
-from config import KINETICS_LABELS
+from core.config import KINETICS_LABELS
 from services.event import create_event
-from db import SessionLocal
+from core.db import get_db
 
 router = APIRouter(tags=["Video Stream"])
 
@@ -16,7 +16,7 @@ router = APIRouter(tags=["Video Stream"])
 async def websocket_video(ws: WebSocket):
     await ws.accept()
 
-    db = SessionLocal()
+    db = get_db()
 
     with open(KINETICS_LABELS) as f:
         name_to_id = json.load(f)
