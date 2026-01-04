@@ -2,7 +2,7 @@ import torch
 import cv2
 import numpy as np
 from models.anomaly_model import video_model, class_names
-from config import FRAME_WINDOW
+from core.config import FRAME_WINDOW
 from services.device import device
 
 frame_buffer = []

@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import VideoTabs from "./components/VideoTabs";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import Auth from "./components/Auth";
+import { LogoutButton } from "./components/LogoutButton";
 
 interface Event {
 	event_type: string;
@@ -31,14 +35,33 @@ export default function App() {
 	}, []);
 
 	return (
-		<div className="flex flex-col items-center min-h-screen p-5">
-			<div className="text-center mb-5">
-				<h1 className="text-2xl font-bold">
-					АИС: анализ видеопотока — прототип
-				</h1>
-			</div>
+		<BrowserRouter>
+			<Routes>
+				<Route path="/auth" element={<Auth />} />
 
-			<VideoTabs setResult={setResult} result={result} events={events} />
-		</div>
+				<Route
+					path="/"
+					element={
+						<ProtectedRoute>
+							<div className="flex flex-col full-width items-center min-h-screen p-5">
+								<div className="flex flex-row space-between full-width gap-5">
+									<h1 className="text-2xl font-bold">
+										АИС: анализ видеопотока — прототип
+									</h1>
+									<LogoutButton></LogoutButton>
+								</div>
+								<VideoTabs
+									setResult={setResult}
+									result={result}
+									events={events}
+								/>
+							</div>
+						</ProtectedRoute>
+					}
+				/>
+
+				<Route path="*" element={<Navigate to="/" />} />
+			</Routes>
+		</BrowserRouter>
 	);
 }

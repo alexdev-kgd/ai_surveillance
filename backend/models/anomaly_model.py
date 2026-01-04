@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from config import ANOMALY_MODEL_PATH
+from core.config import ANOMALY_MODEL_PATH
 from services.device import device
 
 # Load base model
