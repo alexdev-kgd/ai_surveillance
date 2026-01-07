@@ -1,29 +1,23 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/axios";
-interface DetectionSettings {
-	shoplift: boolean;
-	assault: boolean;
-	fall_floor: boolean;
-	jump: boolean;
-	run: boolean;
-	shoot_gun: boolean;
+interface ActionSetting {
+	enabled: boolean;
+	sensitivity: number;
 }
 
 interface Settings {
-	detection: DetectionSettings;
-	sensitivity: number;
+	detection: Record<string, ActionSetting>;
 }
 
 const defaultSettings: Settings = {
 	detection: {
-		shoplift: true,
-		assault: true,
-		fall_floor: true,
-		jump: false,
-		run: true,
-		shoot_gun: true,
+		shoplift: { enabled: true, sensitivity: 0.7 },
+		assault: { enabled: true, sensitivity: 0.8 },
+		fall_floor: { enabled: true, sensitivity: 0.6 },
+		jump: { enabled: false, sensitivity: 0.5 },
+		run: { enabled: true, sensitivity: 0.65 },
+		shoot_gun: { enabled: true, sensitivity: 0.9 },
 	},
-	sensitivity: 0.6,
 };
 
 export const Settings = () => {
@@ -39,13 +33,25 @@ export const Settings = () => {
 				setSettings(res.data);
 			} catch (err) {
 				console.error(err);
-				throw new Error("Failed to fetch");
 			} finally {
 				setLoading(false);
 			}
 		};
 		fetchSettings();
 	}, []);
+
+	const updateAction = (actionKey: string, patch: Partial<ActionSetting>) => {
+		setSettings((prev) => ({
+			...prev,
+			detection: {
+				...prev.detection,
+				[actionKey]: {
+					...prev.detection[actionKey],
+					...patch,
+				},
+			},
+		}));
+	};
 
 	const saveSettings = async () => {
 		setSaving(true);
@@ -59,7 +65,6 @@ export const Settings = () => {
 		} catch (err) {
 			console.error(err);
 			setMessage("Ошибка при сохранении");
-			throw new Error("Failed to save");
 		} finally {
 			setSaving(false);
 			setTimeout(() => setMessage(""), 3000);
@@ -70,43 +75,47 @@ export const Settings = () => {
 
 	return (
 		<div style={{ padding: 20, maxWidth: 600 }}>
-			<section style={{ marginBottom: 20 }}>
-				<h3>Детекция событий</h3>
-				{Object.entries(settings.detection).map(([key, value]) => (
-					<label key={key} style={{ display: "block", marginBottom: 8 }}>
+			<h2 style={{ marginBottom: 20 }}>Настройки детекции</h2>
+
+			{Object.entries(settings.detection).map(([key, action]) => (
+				<div
+					key={key}
+					style={{
+						marginBottom: 20,
+						padding: 10,
+						border: "1px solid #ddd",
+						borderRadius: 6,
+					}}
+				>
+					<label style={{ display: "block", marginBottom: 6 }}>
 						<input
 							type="checkbox"
-							checked={value}
-							onChange={(e) =>
-								setSettings({
-									...settings,
-									detection: { ...settings.detection, [key]: e.target.checked },
-								})
-							}
-						/>
-						{" " + key.replace(/([A-Z])/g, " $1")}
+							checked={action.enabled}
+							onChange={(e) => updateAction(key, { enabled: e.target.checked })}
+						/>{" "}
+						<strong>{key.replace(/_/g, " ")}</strong>
 					</label>
-				))}
-			</section>
 
-			<section style={{ marginBottom: 20 }}>
-				<h3>Чувствительность модели</h3>
-				<input
-					type="range"
-					min={0}
-					max={1}
-					step={0.01}
-					value={settings.sensitivity}
-					onChange={(e) =>
-						setSettings({
-							...settings,
-							sensitivity: parseFloat(e.target.value),
-						})
-					}
-				/>
-				<div>{Math.round(settings.sensitivity * 100)}%</div>
-			</section>
+					<input
+						type="range"
+						min="0"
+						max="1"
+						step="0.01"
+						value={action.sensitivity}
+						disabled={!action.enabled}
+						onChange={(e) =>
+							updateAction(key, {
+								sensitivity: Number(e.target.value),
+							})
+						}
+						style={{ width: "100%" }}
+					/>
 
+					<div style={{ fontSize: 12, opacity: 0.7 }}>
+						Чувствительность: {action.sensitivity.toFixed(2)}
+					</div>
+				</div>
+			))}
 			<button
 				onClick={saveSettings}
 				disabled={saving}

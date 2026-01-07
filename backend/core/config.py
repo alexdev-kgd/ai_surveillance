@@ -7,15 +7,41 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 ACTIONS = {
-        "shoplift": True,
-        "assault": True,
-        "fall_floor": True,
-        "jump": False,
-        "run": True,
-        "shoot_gun": True,
+    "shoplift": {
+        "enabled": True,
+        "sensitivity": 0.7,
+    },
+    "assault": {
+        "enabled": True,
+        "sensitivity": 0.8,
+    },
+    "fall_floor": {
+        "enabled": True,
+        "sensitivity": 0.6,
+    },
+    "jump": {
+        "enabled": False,
+        "sensitivity": 0.5,
+    },
+    "run": {
+        "enabled": True,
+        "sensitivity": 0.65,
+    },
+    "shoot_gun": {
+        "enabled": True,
+        "sensitivity": 0.9,
+    },
 }
 
 DEFAULT_SETTINGS = {
-    "detection": ACTIONS,
-    "sensitivity": 0.6,
+    "detection": ACTIONS
+}
+
+CLASS_TO_ACTION = {
+    "shoplift": "shoplift",
+    "assault": "assault",
+    "fall_floor": "fall_floor",
+    "jump": "jump",
+    "run": "run",
+    "shoot_gun": "shoot_gun",
 }

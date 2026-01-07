@@ -7,6 +7,7 @@ from schemas.settings import Settings as SettingsSchema
 from models.settings import Settings
 from models.user import User
 from services.auth import get_current_user
+from services.settings import load_settings
 from core.config import ACTIONS
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -20,9 +21,10 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
     if not settings:
         return SettingsSchema(
-            detection=ACTIONS,
-            sensitivity=0.6,
+            detection=ACTIONS
         )
+
+    await load_settings(db)
 
     return SettingsSchema(**settings.settings)
 
@@ -50,5 +52,7 @@ async def update_settings(
 
     await db.commit()
     await db.refresh(settings)
+
+    await load_settings(db)
 
     return payload

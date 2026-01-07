@@ -2,10 +2,14 @@ import torch
 import cv2
 import numpy as np
 from models.anomaly_model import video_model, class_names
-from core.config import FRAME_WINDOW
+from core.config import FRAME_WINDOW, CLASS_TO_ACTION
 from services.device import device
+from services.settings import get_settings
 
 frame_buffer = []
+
+def sensitivity_to_threshold(sensitivity: float) -> float:
+    return max(0.1, 0.9 - sensitivity * 0.7)
 
 def anomaly_model_predict(frame: np.ndarray):
     global frame_buffer
@@ -30,17 +34,40 @@ def anomaly_model_predict(frame: np.ndarray):
     # --- Predict ---
     with torch.no_grad():
         logits = video_model(video_tensor)
-        probs = torch.softmax(logits, dim=-1)
-        topk = torch.topk(probs[0], 3)
-        top_actions = [(class_names[i], float(p)) for p, i in zip(topk.values, topk.indices)]
+        probs = torch.softmax(logits, dim=-1)[0]
 
-        # Log top actions
-        print("[Detected Actions]")
-        for act, conf in top_actions:
-            print(f"  • {act}: {conf:.3f}")
 
-        # Determine label
-        label, confidence = top_actions[0]
-        label_out = "suspicious (" + label + ")" if label != "normal" else "normal"
+    topk = torch.topk(probs, 3)
+    top_actions = [(class_names[i], float(p)) for p, i in zip(topk.values, topk.indices)]
 
-    return label_out, confidence
+    # Log top actions
+    print("[Detected Actions]")
+    for label, confidence in top_actions:
+        print(f"  • {label}: {confidence:.3f}")
+
+        # Parameters Settings
+        settings = get_settings()
+
+        if not settings:
+            return "normal", confidence
+
+        # Determine label and action config
+        action_key = CLASS_TO_ACTION.get(label)
+        action_cfg = settings["detection"].get(action_key)
+
+        print(action_key)
+        # Ignore if unknown
+        if not action_key:
+            return "normal", confidence
+
+        # Action disabled
+        if not action_cfg or not action_cfg["enabled"]:
+            return "normal", confidence
+
+        threshold = sensitivity_to_threshold(action_cfg["sensitivity"])
+
+        # Sensitivity threshold
+        if confidence < threshold:
+            return "normal", confidence
+
+        return f"suspicious ({action_key})", confidence
