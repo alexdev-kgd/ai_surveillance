@@ -11,6 +11,7 @@ import LiveStream from "./LiveStream";
 import EventList from "./EventList";
 import EventLogs from "./EventLogs";
 import { useAuth } from "../context/AuthContext";
+import { Settings } from "./Settings";
 
 interface TabPanelProps {
 	children?: React.ReactNode;
@@ -114,7 +115,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 			</CustomTabPanel>
 			{canAccessSettings && (
 				<CustomTabPanel value={value} index={3}>
-					Настройки
+					<Settings />
 				</CustomTabPanel>
 			)}
 		</Box>
