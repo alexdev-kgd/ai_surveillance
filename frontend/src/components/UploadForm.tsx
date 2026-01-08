@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { baseURL } from "../api/axios";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
@@ -20,11 +21,11 @@ export default function UploadForm({ setResult, setLoading, loading }: Props) {
 		setLoading(true);
 
 		try {
-			const res = await axios.post("http://127.0.0.1:8000/analyze/video/", fd, {
+			const res = await axios.post(`${baseURL}/analyze/video/`, fd, {
 				headers: { "Content-Type": "multipart/form-data" },
 			});
 			setResult(res.data);
-			setVideoUrl("http://127.0.0.1:8000" + res.data.video_path);
+			setVideoUrl(baseURL + "/" + res.data.video_path);
 		} catch (err) {
 			alert("Ошибка анализа видео");
 			console.error(err);

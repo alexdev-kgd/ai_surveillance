@@ -33,6 +33,17 @@ ACTIONS = {
     },
 }
 
+PERMISSIONS = [
+    "users:read", "users:write",
+    "streams:read", "events:read",
+    "system:configure"
+]
+
+ROLES = {
+        "ADMIN": PERMISSIONS,
+        "OPERATOR": ["streams:read"],
+}
+
 DEFAULT_SETTINGS = {
     "detection": ACTIONS
 }

@@ -1,5 +1,4 @@
-# routers/events.py
-from fastapi import APIRouter, Depends
+from fastapi import HTTPException, APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
@@ -26,7 +25,9 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
 
     await load_settings(db)
 
-    return SettingsSchema(**settings.settings)
+    return SettingsSchema(
+        detection=settings.settings["detection"]
+    )
 
 @router.put("", response_model=SettingsSchema)
 async def update_settings(
@@ -34,6 +35,9 @@ async def update_settings(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if "system:configure" not in user.permissions:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
     stmt = select(Settings).where(Settings.name == "default")
     result = await db.execute(stmt)
 

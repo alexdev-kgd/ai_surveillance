@@ -8,7 +8,7 @@ from models.role import Role
 from models.settings import Settings
 from models.permission import Permission, role_permissions
 from passlib.context import CryptContext
-from core.config import DEFAULT_SETTINGS
+from core.config import DEFAULT_SETTINGS, PERMISSIONS
 from core.db import DATABASE_URL, engine, AsyncSessionLocal as async_session
 
 # Password hashing
@@ -32,14 +32,8 @@ async def init_data():
             session.add(settings)
 
         # Permissions
-        perm_names = [
-            "users:read", "users:write",
-            "streams:read", "events:read",
-            "system:configure"
-        ]
-
         perms = []
-        for name in perm_names:
+        for name in PERMISSIONS:
             res = await session.execute(select(Permission).where(Permission.name == name))
             p = res.scalar_one_or_none()
             if not p:

@@ -1,12 +1,14 @@
-import { useEffect, useState } from "react";
-import { api } from "../api/axios";
-interface ActionSetting {
+import { useState, useEffect } from "react";
+import { api, baseURL } from "../../../api/axios";
+
+export interface ActionSetting {
 	enabled: boolean;
 	sensitivity: number;
 }
 
-interface Settings {
+export interface Settings {
 	detection: Record<string, ActionSetting>;
+	roles: Record<string, string[]>;
 }
 
 const defaultSettings: Settings = {
@@ -18,27 +20,17 @@ const defaultSettings: Settings = {
 		run: { enabled: true, sensitivity: 0.65 },
 		shoot_gun: { enabled: true, sensitivity: 0.9 },
 	},
+	roles: {
+		admin: ["view", "edit", "delete"],
+		operator: ["view"],
+	},
 };
 
-export const Settings = () => {
+export const DetectionSettings = () => {
 	const [settings, setSettings] = useState<Settings>(defaultSettings);
-	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	const [loading, setLoading] = useState(true);
 	const [message, setMessage] = useState("");
-
-	useEffect(() => {
-		const fetchSettings = async () => {
-			try {
-				const res = await api.get("http://127.0.0.1:8000/settings");
-				setSettings(res.data);
-			} catch (err) {
-				console.error(err);
-			} finally {
-				setLoading(false);
-			}
-		};
-		fetchSettings();
-	}, []);
 
 	const updateAction = (actionKey: string, patch: Partial<ActionSetting>) => {
 		setSettings((prev) => ({
@@ -53,10 +45,24 @@ export const Settings = () => {
 		}));
 	};
 
+	useEffect(() => {
+		const fetchSettings = async () => {
+			try {
+				const res = await api.get(`${baseURL}/settings`);
+				setSettings(res.data);
+			} catch (err) {
+				console.error(err);
+			} finally {
+				setLoading(false);
+			}
+		};
+		fetchSettings();
+	}, []);
+
 	const saveSettings = async () => {
 		setSaving(true);
 		try {
-			await api.put("http://127.0.0.1:8000/settings", settings, {
+			await api.put(`${baseURL}/settings`, settings, {
 				headers: {
 					"Content-Type": "application/json",
 				},
@@ -116,6 +122,7 @@ export const Settings = () => {
 					</div>
 				</div>
 			))}
+
 			<button
 				onClick={saveSettings}
 				disabled={saving}
@@ -128,7 +135,7 @@ export const Settings = () => {
 					cursor: "pointer",
 				}}
 			>
-				{saving ? "Сохраняем..." : "Сохранить настройки"}
+				{saving ? "Сохраняем..." : "Сохранить"}
 			</button>
 
 			{message && <div style={{ marginTop: 10 }}>{message}</div>}

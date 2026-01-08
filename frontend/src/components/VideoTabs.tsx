@@ -11,26 +11,8 @@ import LiveStream from "./LiveStream";
 import EventList from "./EventList";
 import EventLogs from "./EventLogs";
 import { useAuth } from "../context/AuthContext";
-import { Settings } from "./Settings";
-
-interface TabPanelProps {
-	children?: React.ReactNode;
-	index: number;
-	value: number;
-}
-
-function CustomTabPanel({ children, value, index }: TabPanelProps) {
-	return (
-		<div
-			role="tabpanel"
-			hidden={value !== index}
-			id={`tabpanel-${index}`}
-			aria-labelledby={`tab-${index}`}
-		>
-			{value === index && <Box sx={{ p: 2 }}>{children}</Box>}
-		</div>
-	);
-}
+import { Settings } from "./settings/Settings";
+import { CustomTabPanel } from "./CustomTabPanel";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
@@ -51,7 +33,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 
 	const canAccessSettings = user?.permissions.includes("system:configure");
 
-	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+	const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
 		setValue(newValue);
 	};
 
@@ -82,7 +64,6 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 						label="Журнал событий"
 						id="tab-2"
 					/>
-					\
 					{canAccessSettings && (
 						<Tab
 							icon={<SettingsIcon />}
