@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { fetchCurrentUser } from "../services/auth.service";
 import { useLocation } from "react-router-dom";
+import { api } from "../api/axios";
 
 type User = {
 	email: string;
@@ -24,9 +25,14 @@ export const AuthProvider = ({ children }: any) => {
 	const [user, setUser] = useState<User | null>(null);
 	const [authLoading, setAuthLoading] = useState<boolean>(true);
 
-	const logout = () => {
-		localStorage.removeItem("token");
-		setUser(null);
+	const logout = async () => {
+		try {
+			await api.post("/auth/logout");
+		} catch {
+		} finally {
+			localStorage.removeItem("token");
+			setUser(null);
+		}
 	};
 
 	useEffect(() => {
