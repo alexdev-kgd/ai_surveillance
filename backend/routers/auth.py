@@ -9,6 +9,8 @@ from services.auth import (
     authenticate_user,
     get_current_user
 )
+from services.audit_log import log_action
+from core.audit_action import AuditAction
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -30,16 +32,32 @@ async def login(
     data: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    token = await authenticate_user(
+    user, token = await authenticate_user(
         db=db,
         email=data.email,
         password=data.password,
     )
 
+    await log_action(db, user.id, AuditAction.LOGIN)
+
     return {
         "access_token": token,
         "token_type": "bearer",
     }
+
+@router.post("/logout")
+async def logout(
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user)
+):
+    await log_action(
+        db,
+        user.id,
+        AuditAction.LOGOUT,
+        details={"message": "Пользователь вышел из системы"}
+    )
+
+    return {"status": "ok"}
 
 @router.get("/me")
 async def me(user: User = Depends(get_current_user)):

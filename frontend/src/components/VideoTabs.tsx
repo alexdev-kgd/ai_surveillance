@@ -4,6 +4,7 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import VideocamIcon from "@mui/icons-material/Videocam";
 import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import SettingsIcon from "@mui/icons-material/Settings";
+import ViewListIcon from "@mui/icons-material/ViewList";
 
 import UploadForm from "./UploadForm";
 import Results from "./Results";
@@ -11,6 +12,7 @@ import LiveStream from "./LiveStream";
 import EventList from "./EventList";
 import EventLogs from "./EventLogs";
 import { useAuth } from "../context/AuthContext";
+import Audit from "./Audit";
 
 interface TabPanelProps {
 	children?: React.ReactNode;
@@ -49,6 +51,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 	const { user } = useAuth();
 
 	const canAccessSettings = user?.permissions.includes("system:configure");
+	const canAccessAuditLogs = user?.permissions.includes("audit:read");
 
 	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
 		setValue(newValue);
@@ -81,13 +84,20 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 						label="Журнал событий"
 						id="tab-2"
 					/>
-					\
 					{canAccessSettings && (
 						<Tab
 							icon={<SettingsIcon />}
 							iconPosition="start"
 							label="Настройки"
 							id="tab-3"
+						/>
+					)}
+					{canAccessAuditLogs && (
+						<Tab
+							icon={<ViewListIcon />}
+							iconPosition="start"
+							label="Аудит"
+							id="tab-4"
 						/>
 					)}
 				</Tabs>
@@ -115,6 +125,11 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 			{canAccessSettings && (
 				<CustomTabPanel value={value} index={3}>
 					Настройки
+				</CustomTabPanel>
+			)}
+			{canAccessAuditLogs && (
+				<CustomTabPanel value={value} index={4}>
+					<Audit></Audit>
 				</CustomTabPanel>
 			)}
 		</Box>

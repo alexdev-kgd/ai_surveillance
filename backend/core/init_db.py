@@ -5,6 +5,7 @@ from sqlalchemy import select
 from models.base import Base
 from models.user import User
 from models.role import Role
+from models.audit_log import AuditLog
 from models.permission import Permission, role_permissions
 from passlib.context import CryptContext
 from core.db import DATABASE_URL, engine, AsyncSessionLocal as async_session

@@ -99,7 +99,7 @@ async def authenticate_user(
         }
     )
 
-    return token
+    return user, token
 
 async def get_current_user(
     db: AsyncSession = Depends(get_db),
