@@ -12,26 +12,9 @@ import LiveStream from "./LiveStream";
 import EventList from "./EventList";
 import EventLogs from "./EventLogs";
 import { useAuth } from "../context/AuthContext";
+import { Settings } from "./settings/Settings";
+import { CustomTabPanel } from "./CustomTabPanel";
 import Audit from "./Audit";
-
-interface TabPanelProps {
-	children?: React.ReactNode;
-	index: number;
-	value: number;
-}
-
-function CustomTabPanel({ children, value, index }: TabPanelProps) {
-	return (
-		<div
-			role="tabpanel"
-			hidden={value !== index}
-			id={`tabpanel-${index}`}
-			aria-labelledby={`tab-${index}`}
-		>
-			{value === index && <Box sx={{ p: 2 }}>{children}</Box>}
-		</div>
-	);
-}
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
@@ -53,7 +36,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 	const canAccessSettings = user?.permissions.includes("system:configure");
 	const canAccessAuditLogs = user?.permissions.includes("audit:read");
 
-	const handleChange = (event: React.SyntheticEvent, newValue: number) => {
+	const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
 		setValue(newValue);
 	};
 
@@ -124,7 +107,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 			</CustomTabPanel>
 			{canAccessSettings && (
 				<CustomTabPanel value={value} index={3}>
-					Настройки
+					<Settings />
 				</CustomTabPanel>
 			)}
 			{canAccessAuditLogs && (

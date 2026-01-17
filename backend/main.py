@@ -12,12 +12,15 @@ app.add_middleware(
 )
 
 # Register routers
-from routers import analyze_video, websocket_events, websocket_video, events, auth, audit_log
+from routers import analyze_video, websocket_events, websocket_video, events, auth, settings, permissions, roles, audit_log
 app.include_router(events.router)
 app.include_router(analyze_video.router)
 app.include_router(websocket_events.router)
 app.include_router(websocket_video.router)
 app.include_router(auth.router)
+app.include_router(settings.router)
+app.include_router(permissions.router)
+app.include_router(roles.router)
 app.include_router(audit_log.router)
 
 # Ensure static folders exist

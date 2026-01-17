@@ -5,9 +5,11 @@ from sqlalchemy import select
 from models.base import Base
 from models.user import User
 from models.role import Role
+from models.settings import Settings
 from models.audit_log import AuditLog
 from models.permission import Permission, role_permissions
 from passlib.context import CryptContext
+from core.config import DEFAULT_SETTINGS, PERMISSIONS
 from core.db import DATABASE_URL, engine, AsyncSessionLocal as async_session
 
 # Password hashing
@@ -19,15 +21,20 @@ async def create_tables():
 
 async def init_data():
     async with async_session() as session:
-        # Permissions
-        perm_names = [
-            "users:read", "users:write",
-            "streams:read", "events:read",
-            "system:configure"
-        ]
+        # Settings
+        res = await session.execute(select(Settings).where(Settings.name == "default"))
+        settings = res.scalar_one_or_none()
+        if not settings:
+            settings = Settings(
+                name="default",
+                settings=DEFAULT_SETTINGS,
+                updated_by="system"
+            )
+            session.add(settings)
 
+        # Permissions
         perms = []
-        for name in perm_names:
+        for name in PERMISSIONS:
             res = await session.execute(select(Permission).where(Permission.name == name))
             p = res.scalar_one_or_none()
             if not p:

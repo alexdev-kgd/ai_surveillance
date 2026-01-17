@@ -10,3 +10,9 @@ class User(Base):
     password_hash = Column(String, nullable=False)
     role_id = Column(ForeignKey("roles.id"))
     role = relationship("Role")
+
+    @property
+    def permissions(self) -> set[str]:
+        if not self.role:
+            return set()
+        return {p.name for p in self.role.permissions}

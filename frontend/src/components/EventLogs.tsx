@@ -1,5 +1,6 @@
 import axios from "axios";
 import React, { useEffect } from "react";
+import { baseURL } from "../api/axios";
 
 interface Event {
 	event_type: string;
@@ -13,7 +14,7 @@ export default function EventLogs() {
 
 	useEffect(() => {
 		const fetchEvents = async () => {
-			const res = await axios.get("http://127.0.0.1:8000/events/");
+			const res = await axios.get(`${baseURL}/events/`);
 			setEvents(res.data);
 		};
 
