@@ -1,15 +1,11 @@
 import { useEffect, useState } from "react";
 import { api, baseURL } from "../../../api/axios";
+import { ROLE_NAMES } from "../../../constants/roleNames.const";
 
 interface Role {
 	name: string;
 	permissions: string[];
 }
-
-const roleNames: Record<string, string> = {
-	ADMIN: "Администратор",
-	OPERATOR: "Оператор",
-};
 
 const permissionNames: Record<string, string> = {
 	"system:configure": "Настройка системы",
@@ -94,7 +90,7 @@ export const PermissionsSettings = () => {
 						marginBottom: 16,
 					}}
 				>
-					<strong>{roleNames[role.name] || role.name}</strong>
+					<strong>{ROLE_NAMES[role.name] || role.name}</strong>
 
 					{allPermissions.map((perm) => (
 						<label key={perm} style={{ display: "block" }}>

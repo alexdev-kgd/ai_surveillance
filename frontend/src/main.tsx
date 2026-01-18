@@ -4,6 +4,8 @@ import "./index.css";
 import App from "./App.tsx";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import { AuthProvider } from "./context/AuthContext.tsx";
+import { LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 const theme = createTheme({
 	components: {
@@ -23,7 +25,9 @@ createRoot(document.getElementById("root")!).render(
 	<StrictMode>
 		<AuthProvider>
 			<ThemeProvider theme={theme}>
-				<App />
+				<LocalizationProvider dateAdapter={AdapterDayjs}>
+					<App />
+				</LocalizationProvider>
 			</ThemeProvider>
 		</AuthProvider>
 	</StrictMode>

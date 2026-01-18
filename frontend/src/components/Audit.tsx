@@ -8,7 +8,11 @@ import {
 	Select,
 	TablePagination,
 	TextField,
+	type TextFieldProps,
 } from "@mui/material";
+import { ROLE_NAMES } from "../constants/roleNames.const";
+import { Dayjs } from "dayjs";
+import { DatePicker } from "@mui/x-date-pickers";
 
 interface AuditLog {
 	id: number;
@@ -31,6 +35,9 @@ export default function Audit() {
 	const [action, setAction] = useState("");
 	const [role, setRole] = useState("");
 
+	const [dateFrom, setDateFrom] = useState<Dayjs | null>(null);
+	const [dateTo, setDateTo] = useState<Dayjs | null>(null);
+
 	const debouncedSearch = useDebounce(search);
 
 	useEffect(() => {
@@ -43,6 +50,10 @@ export default function Audit() {
 						search: debouncedSearch || undefined,
 						action: action || undefined,
 						role: role || undefined,
+						date_from: dateFrom
+							? dateFrom.startOf("day").toISOString()
+							: undefined,
+						date_to: dateTo ? dateTo.endOf("day").toISOString() : undefined,
 					},
 				});
 				setLogs(res.data.items);
@@ -53,22 +64,48 @@ export default function Audit() {
 		};
 
 		fetchAuditLogs();
-	}, [page, rowsPerPage, debouncedSearch, action, role]);
+	}, [page, rowsPerPage, debouncedSearch, action, role, dateFrom, dateTo]);
+
+	const datePickerTextFieldProps: TextFieldProps = {
+		size: "small",
+		sx: {
+			flex: 1,
+			flexDirection: "row",
+		},
+		InputLabelProps: {
+			sx: {
+				transform: "translate(14px, 16px) scale(1)",
+				"&.MuiFormLabel-filled": {
+					transform: "translate(15px, -8px) scale(0.75)",
+				},
+				"&.Mui-focused": {
+					transform: "translate(15px, -8px) scale(0.75)",
+				},
+			},
+		},
+	};
 
 	return (
 		<>
-			<Box display="flex" gap={2} mb={2}>
+			<Box display="flex" gap={2} mb={2} alignItems="stretch">
 				<TextField
 					label="Search"
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					fullWidth
+					sx={{
+						flex: 2,
+						minWidth: 220,
+					}}
 				/>
 
 				<Select
 					value={action}
 					onChange={(e) => setAction(e.target.value)}
 					displayEmpty
+					sx={{
+						flex: 1,
+					}}
 				>
 					<MenuItem value="">Все действия</MenuItem>
 
@@ -83,11 +120,32 @@ export default function Audit() {
 					value={role}
 					onChange={(e) => setRole(e.target.value)}
 					displayEmpty
+					sx={{
+						flex: 1,
+					}}
 				>
 					<MenuItem value="">Все роли</MenuItem>
-					<MenuItem value="ADMIN">Администратор</MenuItem>
-					<MenuItem value="OPERATOR">Оператор</MenuItem>
+
+					{Object.entries(ROLE_NAMES).map(([value, name]) => (
+						<MenuItem key={value} value={value}>
+							{name}
+						</MenuItem>
+					))}
 				</Select>
+
+				<DatePicker
+					label="От"
+					value={dateFrom}
+					onChange={(newValue) => setDateFrom(newValue)}
+					slotProps={{ textField: datePickerTextFieldProps }}
+				/>
+
+				<DatePicker
+					label="До"
+					value={dateTo}
+					onChange={(newValue) => setDateTo(newValue)}
+					slotProps={{ textField: datePickerTextFieldProps }}
+				/>
 			</Box>
 
 			<table
@@ -114,7 +172,7 @@ export default function Audit() {
 								{new Date(log.created_at).toLocaleString()}
 							</td>
 							<td style={cellStyle}>{log.email}</td>
-							<td style={cellStyle}>{log.role}</td>
+							<td style={cellStyle}>{ROLE_NAMES[log.role] ?? log.role}</td>
 							<td style={cellStyle}>
 								{AUDIT_ACTION_LABELS[log.action] ?? log.action}
 							</td>

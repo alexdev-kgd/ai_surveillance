@@ -1,14 +1,17 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, and_,  or_, cast, String
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Optional
 
 from core.db import get_db
+from core.mappings import ROLE_LABELS, ROLE_LABELS_REVERSE, ACTION_LABELS, ACTION_LABELS_REVERSE
 from models.audit_log import AuditLog
 from models.user import User
 from models.role import Role
 from services.auth import get_current_user
 from schemas.audit import AuditLogPage
+from utils.convert_to_naive_utc import convert_to_naive_utc
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
 
@@ -16,11 +19,11 @@ router = APIRouter(prefix="/audit", tags=["Audit"])
 async def get_audit_logs(
     page: int = Query(0, ge=0),
     size: int = Query(10, le=100),
-    search: str | None = None,
-    action: str | None = None,
-    role: str | None = None,
-    date_from: datetime | None = None,
-    date_to: datetime | None = None,
+    search: Optional[str] = Query(None),
+    action: Optional[str] = Query(None),
+    role: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
     admin=Depends(get_current_user)
@@ -34,17 +37,23 @@ async def get_audit_logs(
         filters.append(Role.name == role)
 
     if date_from:
+        date_from = convert_to_naive_utc(date_from)
         filters.append(AuditLog.created_at >= date_from)
 
     if date_to:
+        date_to = convert_to_naive_utc(date_to)
         filters.append(AuditLog.created_at <= date_to)
 
     if search:
+        search_normalized = search.lower()
+        mapped_roles = [r for k, r in ROLE_LABELS_REVERSE.items() if search_normalized in k]
+        mapped_actions = [a for k, a in ACTION_LABELS_REVERSE.items() if search_normalized in k]
+
         filters.append(
             or_(
                 User.email.ilike(f"%{search}%"),
-                AuditLog.action.ilike(f"%{search}%"),
-                cast(AuditLog.details, String).ilike(f"%{search}%"),
+                AuditLog.action.in_(mapped_actions) if mapped_actions else False,
+                User.role.has(Role.name.in_(mapped_roles)) if mapped_roles else False
             )
         )
 
