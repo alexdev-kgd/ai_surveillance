@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { baseURL } from "../api/axios";
+import { baseURL } from "@api/axios";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;

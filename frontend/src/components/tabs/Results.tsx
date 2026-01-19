@@ -1,25 +1,16 @@
 import React from "react";
+import type { IDetection } from "@interfaces/detection.interface";
 
 interface Props {
 	result: any;
-}
-
-interface Detection {
-	id: number;
-	frame: number;
-	label: string;
-	confidence: number;
-	bbox: number[];
 }
 
 export default function Results({ result }: Props) {
 	if (!result) return null;
 
 	const suspicious = result.detections.filter(
-		(detection: Detection) => detection.label !== "normal"
+		(detection: IDetection) => detection.label !== "normal"
 	);
-
-	console.log(suspicious);
 
 	if (suspicious.length === 0)
 		return (
@@ -45,7 +36,7 @@ export default function Results({ result }: Props) {
 					</tr>
 				</thead>
 				<tbody>
-					{suspicious.map((detection: Detection, idx: number) => {
+					{suspicious.map((detection: IDetection, idx: number) => {
 						const timeSec = (detection.frame / result.fps).toFixed(2);
 						return (
 							<tr key={idx}>

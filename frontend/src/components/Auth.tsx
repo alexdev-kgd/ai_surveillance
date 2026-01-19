@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { auth, hasToken } from "../services/auth.service";
+import { auth, hasToken } from "@services/auth.service";
 import { Navigate, useNavigate } from "react-router-dom";
 import "../Auth.css";
 

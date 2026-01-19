@@ -1,22 +1,11 @@
 import { useEffect, useState } from "react";
-import { api, baseURL } from "../../../api/axios";
-import { ROLE_NAMES } from "../../../constants/roleNames.const";
-
-interface Role {
-	name: string;
-	permissions: string[];
-}
-
-const permissionNames: Record<string, string> = {
-	"system:configure": "Настройка системы",
-	"events:read": "Просмотр событий",
-	"users:read": "Чтение пользователей",
-	"users:write": "Изменение пользователей",
-	"streams:read": "Просмотр потоков",
-};
+import { api, baseURL } from "@api/axios";
+import { ROLE_NAMES } from "@constants/roleNames.const";
+import type { IRole } from "@interfaces/role.interface";
+import { PERMISSION_NAMES } from "@constants/permissionNames.const";
 
 export const PermissionsSettings = () => {
-	const [roles, setRoles] = useState<Role[]>([]);
+	const [roles, setRoles] = useState<IRole[]>([]);
 	const [allPermissions, setAllPermissions] = useState<string[]>([]);
 	const [saving, setSaving] = useState(false);
 	const [loading, setLoading] = useState(true);
@@ -99,7 +88,7 @@ export const PermissionsSettings = () => {
 								checked={role.permissions.includes(perm)}
 								onChange={() => togglePermission(role.name, perm)}
 							/>{" "}
-							{permissionNames[perm] || perm}
+							{PERMISSION_NAMES[perm] || perm}
 						</label>
 					))}
 				</div>

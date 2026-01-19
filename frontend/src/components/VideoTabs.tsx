@@ -6,25 +6,21 @@ import FormatListBulletedIcon from "@mui/icons-material/FormatListBulleted";
 import SettingsIcon from "@mui/icons-material/Settings";
 import ViewListIcon from "@mui/icons-material/ViewList";
 
-import UploadForm from "./UploadForm";
-import Results from "./Results";
-import LiveStream from "./LiveStream";
-import EventList from "./EventList";
-import EventLogs from "./EventLogs";
-import { useAuth } from "../context/AuthContext";
-import { Settings } from "./settings/Settings";
+import UploadForm from "./tabs/UploadForm";
+import Results from "./tabs/Results";
+import LiveStream from "./tabs/LiveStream";
+import EventList from "./tabs/EventList";
+import EventLogs from "./tabs/EventLogs";
+import { useAuth } from "@context/AuthContext";
+import { Settings } from "./tabs/settings/Settings";
 import { CustomTabPanel } from "./CustomTabPanel";
-import Audit from "./Audit";
+import Audit from "./tabs/Audit";
+import type { IEvent } from "@interfaces/event.interface";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
 	result: any;
-	events: Array<{
-		event_type: string;
-		camera: string;
-		timestamp?: string;
-		details?: string;
-	}>;
+	events: IEvent[];
 }
 
 export default function VideoTabs({ setResult, result, events }: Props) {

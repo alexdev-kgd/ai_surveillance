@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import { WSbaseURL } from "@api/ws";
+import { useEffect, useRef, useState } from "react";
 
 export default function LiveStream() {
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -8,7 +9,7 @@ export default function LiveStream() {
 
 	// Create WebSocket ONCE
 	useEffect(() => {
-		const socket = new WebSocket("ws://127.0.0.1:8000/ws/video/");
+		const socket = new WebSocket(`${WSbaseURL}/video`);
 		setWs(socket);
 
 		socket.onopen = () => console.log("WebSocket connected");
@@ -27,7 +28,7 @@ export default function LiveStream() {
 			const msg = JSON.parse(event.data);
 			setPrediction(msg.prediction);
 
-			// draw server-annotated frame
+			// Draw server-annotated frame
 			if (canvasRef.current) {
 				const ctx = canvasRef.current.getContext("2d");
 				const img = new Image();
@@ -41,7 +42,7 @@ export default function LiveStream() {
 		};
 	}, [ws]);
 
-	// capture frames from webcam and send
+	// Capture frames from webcam and send
 	useEffect(() => {
 		if (!ws) return;
 

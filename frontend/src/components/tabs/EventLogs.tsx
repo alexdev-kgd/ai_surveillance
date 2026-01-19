@@ -1,16 +1,10 @@
 import axios from "axios";
 import React, { useEffect } from "react";
-import { baseURL } from "../api/axios";
-
-interface Event {
-	event_type: string;
-	camera?: string;
-	timestamp: Date;
-	details?: string;
-}
+import { baseURL } from "@api/axios";
+import type { IEvent } from "@interfaces/event.interface";
 
 export default function EventLogs() {
-	const [events, setEvents] = React.useState<Event[]>([]);
+	const [events, setEvents] = React.useState<IEvent[]>([]);
 
 	useEffect(() => {
 		const fetchEvents = async () => {
@@ -41,7 +35,7 @@ export default function EventLogs() {
 					</tr>
 				</thead>
 				<tbody>
-					{events.map((ev: Event, idx: number) => {
+					{events.map((ev: IEvent, idx: number) => {
 						return (
 							<tr key={idx}>
 								<td style={cellStyle}>{ev.event_type}</td>

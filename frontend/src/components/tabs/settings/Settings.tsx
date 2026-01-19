@@ -4,7 +4,7 @@ import HubIcon from "@mui/icons-material/Hub";
 import PersonIcon from "@mui/icons-material/Person";
 import { DetectionSettings } from "./tabs/DetectionSettings";
 import { PermissionsSettings } from "./tabs/PermissionsSettings";
-import { CustomTabPanel } from "../CustomTabPanel";
+import { CustomTabPanel } from "@components/CustomTabPanel";
 
 export const Settings = () => {
 	const [tabValue, setTabValue] = useState(0);

@@ -1,17 +1,8 @@
 import { useState, useEffect } from "react";
-import { api, baseURL } from "../../../api/axios";
+import { api, baseURL } from "@api/axios";
+import type { IActionSetting, ISettings } from "@interfaces/settings.interface";
 
-export interface ActionSetting {
-	enabled: boolean;
-	sensitivity: number;
-}
-
-export interface Settings {
-	detection: Record<string, ActionSetting>;
-	roles: Record<string, string[]>;
-}
-
-const defaultSettings: Settings = {
+const defaultSettings: ISettings = {
 	detection: {
 		shoplift: { enabled: true, sensitivity: 0.7 },
 		assault: { enabled: true, sensitivity: 0.8 },
@@ -27,12 +18,12 @@ const defaultSettings: Settings = {
 };
 
 export const DetectionSettings = () => {
-	const [settings, setSettings] = useState<Settings>(defaultSettings);
+	const [settings, setSettings] = useState<ISettings>(defaultSettings);
 	const [saving, setSaving] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [message, setMessage] = useState("");
 
-	const updateAction = (actionKey: string, patch: Partial<ActionSetting>) => {
+	const updateAction = (actionKey: string, patch: Partial<IActionSetting>) => {
 		setSettings((prev) => ({
 			...prev,
 			detection: {

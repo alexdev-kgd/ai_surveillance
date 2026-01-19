@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { AUDIT_ACTION_LABELS } from "../constants/auditActionLabels.const";
-import { api } from "../api/axios";
-import { useDebounce } from "../hooks/useDebounce";
+import { AUDIT_ACTION_LABELS } from "@constants/auditActionLabels.const";
+import { api, baseURL } from "@api/axios";
+import { useDebounce } from "@hooks/useDebounce";
 import {
 	Box,
 	MenuItem,
@@ -10,21 +10,13 @@ import {
 	TextField,
 	type TextFieldProps,
 } from "@mui/material";
-import { ROLE_NAMES } from "../constants/roleNames.const";
+import { ROLE_NAMES } from "../../constants/roleNames.const";
 import { Dayjs } from "dayjs";
 import { DatePicker } from "@mui/x-date-pickers";
-
-interface AuditLog {
-	id: number;
-	created_at: string;
-	email: string;
-	role: string;
-	action: string;
-	details: Record<string, any> | null;
-}
+import type { IAuditLog } from "../../interfaces/auditLog.interface";
 
 export default function Audit() {
-	const [logs, setLogs] = useState<AuditLog[]>([]);
+	const [logs, setLogs] = useState<IAuditLog[]>([]);
 
 	const [total, setTotal] = useState(0);
 
@@ -43,7 +35,7 @@ export default function Audit() {
 	useEffect(() => {
 		const fetchAuditLogs = async () => {
 			try {
-				const res = await api.get("http://127.0.0.1:8000/audit", {
+				const res = await api.get(`${baseURL}/audit`, {
 					params: {
 						page,
 						size: rowsPerPage,

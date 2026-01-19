@@ -1,14 +1,7 @@
-import React from "react";
-
-interface Event {
-	event_type: string;
-	camera: string;
-	timestamp?: string;
-	details?: string;
-}
+import type { IEvent } from "@interfaces/event.interface";
 
 interface Props {
-	events?: Event[];
+	events?: IEvent[];
 }
 
 export default function EventList({ events = [] }: Props) {
@@ -21,7 +14,9 @@ export default function EventList({ events = [] }: Props) {
 					<li key={idx}>
 						<div style={{ fontSize: 13, color: "#333" }}>
 							<b>{ev.event_type}</b> @ {ev.camera} —{" "}
-							<small>{ev.timestamp || ""}</small>
+							<small>
+								{new Date(ev.timestamp).toLocaleTimeString("ru-RU")}
+							</small>
 						</div>
 						<div style={{ fontSize: 12, color: "#666" }}>
 							{ev.details ?? ""}

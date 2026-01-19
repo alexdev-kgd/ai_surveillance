@@ -1,13 +1,7 @@
-import React from "react";
 import { Box } from "@mui/material";
+import type { ITabPanelProps } from "@interfaces/tabPanel.interface";
 
-interface TabPanelProps {
-	children?: React.ReactNode;
-	index: number;
-	value: number;
-}
-
-export function CustomTabPanel({ children, value, index }: TabPanelProps) {
+export function CustomTabPanel({ children, value, index }: ITabPanelProps) {
 	return (
 		<div
 			role="tabpanel"

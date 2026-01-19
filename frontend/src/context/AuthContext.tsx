@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { fetchCurrentUser } from "../services/auth.service";
-import { useLocation } from "react-router-dom";
 import { api } from "../api/axios";
 
 type User = {
