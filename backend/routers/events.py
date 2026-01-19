@@ -1,4 +1,3 @@
-# routers/events.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
@@ -10,7 +9,7 @@ router = APIRouter(prefix="/events", tags=["Events"])
 
 @router.get("/", response_model=List[dict])
 async def read_events(db: AsyncSession = Depends(get_db)):
-    events = get_events(db)
+    events = await get_events(db)
     return [
         {
             "id": e.id,
@@ -27,7 +26,7 @@ async def add_event(event_type: str,
                     camera: str = None,
                     details: str = None,
                     db: AsyncSession = Depends(get_db)):
-    ev = create_event(db, event_type, camera, details)
+    ev = await create_event(db, event_type, camera, details)
     return {
             "id": ev.id,
             "event_type": ev.event_type,

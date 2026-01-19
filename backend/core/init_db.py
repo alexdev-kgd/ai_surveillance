@@ -7,6 +7,7 @@ from models.user import User
 from models.role import Role
 from models.settings import Settings
 from models.audit_log import AuditLog
+from models.event import Event
 from models.permission import Permission, role_permissions
 from passlib.context import CryptContext
 from core.config import DEFAULT_SETTINGS, PERMISSIONS
