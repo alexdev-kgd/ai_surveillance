@@ -1,9 +1,13 @@
 import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
-import { hasToken } from "@services/auth.service";
+import { useAuth } from "@context/AuthContext";
 
 export const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-	if (!hasToken()) return <Navigate to="/auth" replace />;
+	const { user, authLoading } = useAuth();
+
+	if (authLoading) return <div>Загрузка</div>;
+
+	if (!user) return <Navigate to="/auth" replace />;
 
 	return <>{children}</>;
 };

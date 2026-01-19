@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "@context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export const LogoutButton = () => {
 	const { logout } = useAuth();
@@ -10,5 +10,5 @@ export const LogoutButton = () => {
 		navigate("/auth");
 	};
 
-	return <button onClick={handleLogout}>Logout</button>;
+	return <button onClick={handleLogout}>Выйти</button>;
 };

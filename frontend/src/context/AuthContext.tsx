@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { fetchCurrentUser } from "../services/auth.service";
+import { auth, fetchCurrentUser } from "../services/auth.service";
 import { api } from "../api/axios";
 
 type User = {
@@ -11,18 +11,31 @@ type User = {
 type AuthContextType = {
 	user: User | null;
 	authLoading: boolean;
+	login: (email: string, password: string) => Promise<void>;
 	logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
 	user: null,
 	authLoading: false,
+	login: async () => {},
 	logout: () => {},
 });
 
 export const AuthProvider = ({ children }: any) => {
 	const [user, setUser] = useState<User | null>(null);
 	const [authLoading, setAuthLoading] = useState<boolean>(true);
+
+	const login = async (email: string, password: string) => {
+		setAuthLoading(true);
+		try {
+			await auth(email, password);
+			const userData = await fetchCurrentUser();
+			setUser(userData);
+		} finally {
+			setAuthLoading(false);
+		}
+	};
 
 	const logout = async () => {
 		try {
@@ -44,7 +57,7 @@ export const AuthProvider = ({ children }: any) => {
 	}, []);
 
 	return (
-		<AuthContext.Provider value={{ user, authLoading, logout }}>
+		<AuthContext.Provider value={{ user, authLoading, login, logout }}>
 			{children}
 		</AuthContext.Provider>
 	);

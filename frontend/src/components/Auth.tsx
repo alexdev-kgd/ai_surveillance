@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { auth, hasToken } from "@services/auth.service";
 import { Navigate, useNavigate } from "react-router-dom";
 import "../Auth.css";
+import { useAuth } from "@context/AuthContext";
 
 export default function Auth() {
 	const [email, setEmail] = useState("");
@@ -9,7 +9,12 @@ export default function Auth() {
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
+	const { login, user, authLoading } = useAuth();
 	const navigate = useNavigate();
+
+	if (!authLoading && user) {
+		return <Navigate to="/" replace />;
+	}
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -22,7 +27,8 @@ export default function Auth() {
 
 		try {
 			setLoading(true);
-			await auth(email, password);
+			await login(email, password);
+			console.log(user);
 			navigate("/");
 		} catch (err: any) {
 			setError("Неверные данные");
@@ -30,8 +36,6 @@ export default function Auth() {
 			setLoading(false);
 		}
 	};
-
-	if (hasToken()) return <Navigate to="/" replace />;
 
 	return (
 		<form onSubmit={handleSubmit} className="auth-form">
