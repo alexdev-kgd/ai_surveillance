@@ -48,12 +48,16 @@ export const AuthProvider = ({ children }: any) => {
 	};
 
 	useEffect(() => {
-		fetchCurrentUser()
+		const controller = new AbortController();
+
+		fetchCurrentUser(controller.signal)
 			.then(setUser)
 			.catch((e) => {
 				console.error(e);
 			})
 			.finally(() => setAuthLoading(false));
+
+		return () => controller.abort();
 	}, []);
 
 	return (

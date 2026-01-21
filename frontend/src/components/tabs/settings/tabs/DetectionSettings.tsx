@@ -37,9 +37,13 @@ export const DetectionSettings = () => {
 	};
 
 	useEffect(() => {
+		const controller = new AbortController();
+
 		const fetchSettings = async () => {
 			try {
-				const res = await api.get(`${baseURL}/settings`);
+				const res = await api.get(`${baseURL}/settings`, {
+					signal: controller.signal,
+				});
 				setSettings(res.data);
 			} catch (err) {
 				console.error(err);
@@ -47,7 +51,10 @@ export const DetectionSettings = () => {
 				setLoading(false);
 			}
 		};
+
 		fetchSettings();
+
+		return () => controller.abort();
 	}, []);
 
 	const saveSettings = async () => {

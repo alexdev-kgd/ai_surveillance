@@ -12,10 +12,12 @@ export const PermissionsSettings = () => {
 	const [message, setMessage] = useState("");
 
 	useEffect(() => {
+		const controller = new AbortController();
+
 		const load = async () => {
 			const [rolesRes, permsRes] = await Promise.all([
-				api.get(`${baseURL}/roles`),
-				api.get(`${baseURL}/permissions`),
+				api.get(`${baseURL}/roles`, { signal: controller.signal }),
+				api.get(`${baseURL}/permissions`, { signal: controller.signal }),
 			]);
 
 			setRoles(rolesRes.data);
@@ -25,6 +27,8 @@ export const PermissionsSettings = () => {
 		load()
 			.catch(console.error)
 			.finally(() => setLoading(false));
+
+		return () => controller.abort();
 	}, []);
 
 	const togglePermission = (roleName: string, permission: string) => {

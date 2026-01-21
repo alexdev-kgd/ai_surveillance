@@ -33,9 +33,12 @@ export default function Audit() {
 	const debouncedSearch = useDebounce(search);
 
 	useEffect(() => {
+		const controller = new AbortController();
+
 		const fetchAuditLogs = async () => {
 			try {
 				const res = await api.get(`${baseURL}/audit`, {
+					signal: controller.signal,
 					params: {
 						page,
 						size: rowsPerPage,
@@ -56,6 +59,8 @@ export default function Audit() {
 		};
 
 		fetchAuditLogs();
+
+		return () => controller.abort();
 	}, [page, rowsPerPage, debouncedSearch, action, role, dateFrom, dateTo]);
 
 	const datePickerTextFieldProps: TextFieldProps = {

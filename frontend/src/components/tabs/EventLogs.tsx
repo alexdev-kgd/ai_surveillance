@@ -7,12 +7,18 @@ export default function EventLogs() {
 	const [events, setEvents] = React.useState<IEvent[]>([]);
 
 	useEffect(() => {
+		const controller = new AbortController();
+
 		const fetchEvents = async () => {
-			const res = await axios.get(`${baseURL}/events/`);
+			const res = await axios.get(`${baseURL}/events/`, {
+				signal: controller.signal,
+			});
 			setEvents(res.data);
 		};
 
 		fetchEvents();
+
+		return () => controller.abort();
 	}, []);
 
 	return (

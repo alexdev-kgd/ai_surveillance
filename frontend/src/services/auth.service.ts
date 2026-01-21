@@ -13,9 +13,11 @@ export const auth = async (email: string, password: string) => {
 	}
 };
 
-export async function fetchCurrentUser() {
+export async function fetchCurrentUser(controllerSignal?: AbortSignal) {
 	try {
-		const res = await api.get("/auth/me");
+		const res = await api.get("/auth/me", {
+			signal: controllerSignal,
+		});
 		return res.data;
 	} catch (err: any) {
 		if (err.response && err.response.status === 401) {
