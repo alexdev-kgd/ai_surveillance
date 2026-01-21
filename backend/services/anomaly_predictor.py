@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from models.anomaly_model import video_model, class_names
 from core.config import FRAME_WINDOW, CLASS_TO_ACTION
-from services.device import device
+from utils.device import device
 from services.settings import get_settings
 
 frame_buffer = []

@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 from core.config import ANOMALY_MODEL_PATH
-from services.device import device
+from utils.device import device
 
 # Load base model
 video_model = torch.hub.load("facebookresearch/pytorchvideo", "x3d_m", pretrained=False)
 
-# Add classifier for 9 classes
+# Add classifier
 video_model.blocks[-1].proj = nn.Sequential(
     nn.Dropout(0.5),
     nn.Linear(video_model.blocks[-1].proj.in_features, 3)

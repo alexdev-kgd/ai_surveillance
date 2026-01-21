@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { baseURL } from "@api/axios";
+import { api, baseURL } from "@api/axios";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
@@ -21,7 +20,7 @@ export default function UploadForm({ setResult, setLoading, loading }: Props) {
 		setLoading(true);
 
 		try {
-			const res = await axios.post(`${baseURL}/analyze/video/`, fd, {
+			const res = await api.post(`${baseURL}/analyze/video/`, fd, {
 				headers: { "Content-Type": "multipart/form-data" },
 			});
 			setResult(res.data);

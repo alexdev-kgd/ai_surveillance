@@ -10,8 +10,11 @@ from models.audit_log import AuditLog
 from models.user import User
 from models.role import Role
 from services.auth import get_current_user
+from services.audit_log import log_action
 from schemas.audit import AuditLogPage
 from utils.convert_to_naive_utc import convert_to_naive_utc
+from core.audit_action import AuditAction
+
 
 router = APIRouter(prefix="/audit", tags=["Audit"])
 
@@ -26,7 +29,7 @@ async def get_audit_logs(
     date_to: Optional[datetime] = Query(None),
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    admin=Depends(get_current_user)
+    user=Depends(get_current_user)
 ):
     filters = []
 
@@ -82,6 +85,8 @@ async def get_audit_logs(
     )
 
     result = await db.execute(stmt)
+
+    await log_action(db, user.id, AuditAction.AUDIT_ACCESS)
 
     return {
         "items": result.mappings().all(),

@@ -2,17 +2,22 @@ from fastapi import HTTPException, APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
+from core.audit_action import AuditAction
+from core.config import ACTIONS
 from schemas.settings import Settings as SettingsSchema
 from models.settings import Settings
 from models.user import User
 from services.auth import get_current_user
 from services.settings import load_settings
-from core.config import ACTIONS
+from services.audit_log import log_action
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
 @router.get("", response_model=SettingsSchema)
-async def get_settings(db: AsyncSession = Depends(get_db)):
+async def get_settings(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
     stmt = select(Settings).where(Settings.name == "default")
     result = await db.execute(stmt)
 
@@ -24,6 +29,7 @@ async def get_settings(db: AsyncSession = Depends(get_db)):
         )
 
     await load_settings(db)
+    await log_action(db, user.id, AuditAction.AI_SETTINGS_ACCESS)
 
     return SettingsSchema(
         detection=settings.settings["detection"]
@@ -58,5 +64,6 @@ async def update_settings(
     await db.refresh(settings)
 
     await load_settings(db)
+    await log_action(db, user.id, AuditAction.AI_SETTINGS_UPDATE)
 
     return payload

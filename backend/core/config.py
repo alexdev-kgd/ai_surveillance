@@ -36,7 +36,7 @@ ACTIONS = {
 PERMISSIONS = [
     "users:read", "users:write",
     "streams:read", "events:read",
-    "system:configure"
+    "system:configure", "audit:read"
 ]
 
 ROLES = {

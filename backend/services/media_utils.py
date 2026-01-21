@@ -59,5 +59,5 @@ def analyze_video_file(path: str):
         "total_frames": total_frames,
         "fps": fps,
         "detections": detections_summary,
-        "video_path": f"/static/processed/{output_filename}"
+        "video_path": f"static/processed/{output_filename}"
     }

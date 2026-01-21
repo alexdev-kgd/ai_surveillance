@@ -3,10 +3,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.db import get_db
+from core.audit_action import AuditAction
 from models.user import User
 from models.role import Role
 from models.permission import Permission
 from services.auth import get_current_user
+from services.audit_log import log_action
 from schemas.roles import RolePermissions, RoleSchema
 from typing import List
 
@@ -75,6 +77,8 @@ async def update_role_permissions(
     role.permissions.extend(permissions)
 
     await db.commit()
+
+    await log_action(db, user.id, AuditAction.PERMISSION_SETTINGS_UPDATE)
 
     return {
         "role": role.name,

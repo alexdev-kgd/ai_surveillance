@@ -9,7 +9,7 @@ import torch.optim as optim
 import sys, os
 import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from services.device import device
+from utils.device import device
 import random
 import gc
 
