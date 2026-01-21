@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+*.typed
+*.pyc
+*.mp4
+*.db
+venv
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
