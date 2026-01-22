@@ -1,11 +1,23 @@
-FRAME_WINDOW = 32
+FRAME_WINDOW = 16
 ANOMALY_MODEL_PATH = "suspicious_actions.pth"
 YOLO_MODEL_PATH = "yolov8n.onnx"
 KINETICS_LABELS = "kinetics400_labels.json"
+ACTIONS_TO_DETECT_CLASS_NAMES = [
+    "normal", 
+    "assault",
+    "fall_floor",
+    "hit",
+    "jump",
+    "kick",
+    "punch",
+    "run",
+    "shoot_gun"
+    "shoplift"
+]
 
 SECRET_KEY = "AIS_AI_SECRET_KEY"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 ACTIONS = {
     "shoplift": {
@@ -57,4 +69,14 @@ CLASS_TO_ACTION = {
     "jump": "jump",
     "run": "run",
     "shoot_gun": "shoot_gun",
+}
+
+FRONTEND_LABELS = {
+    "shoplift": "Кража",
+    "assault": "Нападение",
+    "fall_floor": "Падение",
+    "jump": "Прыжок",
+    "run": "Бег",
+    "shoot_gun": "Стрельба из оружия",
+    "normal": "Нормальное поведение",
 }

@@ -3,18 +3,43 @@ import cv2
 import numpy as np
 from models.anomaly_model import video_model, class_names
 from models.yolo_detector import yolo_model
-from core.config import FRAME_WINDOW, CLASS_TO_ACTION
+from core.config import FRAME_WINDOW, CLASS_TO_ACTION, FRONTEND_LABELS
 from utils.device import device
 from services.settings import get_settings
+from utils.text import put_text_ru, TEXT_DEFAULT_POSITION
 
 frame_buffer = []
 
 def sensitivity_to_threshold(sensitivity: float) -> float:
     return max(0.1, 0.9 - sensitivity * 0.7)
 
+def draw_action_label(
+    frame: np.ndarray,
+    label: str,
+    confidence: float,
+    position: tuple[int, int] | None = None,
+):
+    is_normal = label == FRONTEND_LABELS["normal"]
+    color = (0, 255, 0) if is_normal else (255, 0, 0)
+
+    if is_normal:
+        text = f"{label} ({confidence:.2f})"
+    else:
+        text = f"Подозрительное действие: {label} ({confidence:.2f})"
+
+    if position is None:
+        position = TEXT_DEFAULT_POSITION
+
+    return put_text_ru(
+        frame,
+        text,
+        position=position,
+        color=color
+    ), is_normal
+
 def analyze_with_yolo(frame: np.ndarray, total_frames: int):
     detections = []
-    best_label = "normal"
+    best_label = FRONTEND_LABELS["normal"]
     best_confidence = 0.0
 
     yolo_results = yolo_model.predict(frame, conf=0.2)
@@ -32,17 +57,15 @@ def analyze_with_yolo(frame: np.ndarray, total_frames: int):
                 best_label = label
                 best_confidence = confidence
 
-            color = (0, 255, 0) if label == "normal" else (255, 0, 0)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-            cv2.putText(
+            frame, is_normal = draw_action_label(
                 frame,
-                f"{label} ({confidence:.2f})",
-                (x1, y1 - 10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.7,
-                color,
-                2,
+                label,
+                confidence,
+                position=(x1+5, y1 - 30)
             )
+
+            color = (0, 255, 0) if is_normal else (0, 0, 255)
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
             detections.append({
                 "frame": total_frames,
@@ -52,6 +75,7 @@ def analyze_with_yolo(frame: np.ndarray, total_frames: int):
             })
 
     return {
+        "frame_data": frame,
         "frame": total_frames,
         "label": best_label,
         "confidence": best_confidence,
@@ -61,22 +85,18 @@ def analyze_with_yolo(frame: np.ndarray, total_frames: int):
 def analyze_scene(frame: np.ndarray, total_frames: int):
     label, confidence = anomaly_model_predict(frame)
 
-    color = (0, 255, 0) if label == "normal" else (255, 0, 0)
-    cv2.putText(
-        frame,
-        f"{label} ({confidence:.2f})",
-        (10, 20),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.7,
-        color,
-        2,
-    )
+    frame, _ = draw_action_label(frame, label, confidence)
 
     return {
+        "frame_data": frame,
         "frame": total_frames,
         "label": label,
         "confidence": confidence,
-        "detections": [],
+        "detections": [{
+            "frame": total_frames,
+            "label": label,
+            "confidence": confidence,
+        }],
     }
 
 def anomaly_model_predict(frame: np.ndarray):
@@ -92,7 +112,7 @@ def anomaly_model_predict(frame: np.ndarray):
 
     # Wait until we have enough frames
     if len(frame_buffer) < FRAME_WINDOW:
-        return "normal", 0.0
+        return FRONTEND_LABELS["normal"], 0.0
 
     # --- Prepare tensor for model ---
     # Efficient stacking: combine all frames into one numpy array
@@ -116,7 +136,7 @@ def anomaly_model_predict(frame: np.ndarray):
         settings = get_settings()
 
         if not settings:
-            return "normal", confidence
+            return FRONTEND_LABELS["normal"], confidence
 
         # Determine label and action config
         action_key = CLASS_TO_ACTION.get(label)
@@ -124,16 +144,18 @@ def anomaly_model_predict(frame: np.ndarray):
     
         # Ignore if unknown
         if not action_key:
-            return "normal", confidence
+            return FRONTEND_LABELS["normal"], confidence
 
         # Action disabled
         if not action_cfg or not action_cfg["enabled"]:
-            return "normal", confidence
+            return FRONTEND_LABELS["normal"], confidence
 
         threshold = sensitivity_to_threshold(action_cfg["sensitivity"])
 
         # Sensitivity threshold
         if confidence < threshold:
-            return "normal", confidence
+            return FRONTEND_LABELS["normal"], confidence
 
-        return f"suspicious ({action_key})", confidence
+        frontend_label = FRONTEND_LABELS.get(action_key, action_key)
+
+        return frontend_label, confidence

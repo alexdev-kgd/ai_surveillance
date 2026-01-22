@@ -46,8 +46,9 @@ def analyze_video_file(path: str):
 
         detections.extend(result["detections"])
 
-        rgb_annotated = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-        out.write(rgb_annotated)
+        annotated_frame = result['frame_data']
+
+        out.write(annotated_frame)
 
     cap.release()
     out.release()

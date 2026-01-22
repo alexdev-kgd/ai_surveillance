@@ -6,7 +6,7 @@ import cv2
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from PIL import Image
 from services.anomaly_predictor import anomaly_model_predict
-from core.config import KINETICS_LABELS
+from core.config import KINETICS_LABELS, FRONTEND_LABELS
 from services.event import create_event
 from services.settings import get_settings
 from services.anomaly_predictor import (
@@ -36,8 +36,9 @@ async def websocket_video(ws: WebSocket):
         while True:
             data = await ws.receive_text()
             img_bytes = base64.b64decode(data)
-            img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            img = Image.open(io.BytesIO(img_bytes))
             frame = np.array(img)
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
             annotated_frame = frame.copy()
             detections = []
@@ -53,12 +54,12 @@ async def websocket_video(ws: WebSocket):
             confidence = result["confidence"]
             detections = result["detections"]
 
-            if label != "normal":
+            if label != FRONTEND_LABELS["normal"]:
                 create_event(db=db, event_type=label,
                                 camera="Camera 1", details="Автоопределено")
 
-            rgb_annotated = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
-            _, encoded = cv2.imencode(".jpg", rgb_annotated)
+            annotated_frame = result['frame_data']
+            _, encoded = cv2.imencode(".jpg", annotated_frame)
             frame_b64 = base64.b64encode(encoded).decode("utf-8")
 
             await ws.send_json({
