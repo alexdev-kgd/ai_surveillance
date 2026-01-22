@@ -7,3 +7,4 @@ class ActionSettings(BaseModel):
 
 class Settings(BaseModel):
     detection: Dict[str, ActionSettings]
+    useObjectDetection: bool = True

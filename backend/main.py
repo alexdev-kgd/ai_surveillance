@@ -31,6 +31,15 @@ os.makedirs("static/processed", exist_ok=True)
 from fastapi.staticfiles import StaticFiles
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Load settings on startup
+from services.settings import load_settings
+from core.db import get_db
+@app.on_event("startup")
+async def load_app_settings():
+    async for db in get_db():
+        await load_settings(db)
+        break
+
 @app.get("/")
 def root():
     return {"status": "AI surveillance backend running"}

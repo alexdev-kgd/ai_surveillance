@@ -11,10 +11,7 @@ const defaultSettings: ISettings = {
 		run: { enabled: true, sensitivity: 0.65 },
 		shoot_gun: { enabled: true, sensitivity: 0.9 },
 	},
-	roles: {
-		admin: ["view", "edit", "delete"],
-		operator: ["view"],
-	},
+	useObjectDetection: true,
 };
 
 export const DetectionSettings = () => {
@@ -75,51 +72,79 @@ export const DetectionSettings = () => {
 		}
 	};
 
+	const toggleObjectDetection = (enabled: boolean) => {
+		setSettings((prev) => ({
+			...prev,
+			useObjectDetection: enabled,
+		}));
+	};
+
 	if (loading) return <div>Загрузка настроек...</div>;
 
 	return (
 		<div style={{ padding: 20, maxWidth: 600 }}>
-			<h2 style={{ marginBottom: 20 }}>Настройки детекции</h2>
+			<div>
+				<h2 style={{ marginBottom: 20 }}>Настройки детекции</h2>
 
-			{Object.entries(settings.detection).map(([key, action]) => (
-				<div
-					key={key}
-					style={{
-						marginBottom: 20,
-						padding: 10,
-						border: "1px solid #ddd",
-						borderRadius: 6,
-					}}
-				>
-					<label style={{ display: "block", marginBottom: 6 }}>
+				{Object.entries(settings.detection).map(([key, action]) => (
+					<div
+						key={key}
+						style={{
+							marginBottom: 20,
+							padding: 10,
+							border: "1px solid #ddd",
+							borderRadius: 6,
+						}}
+					>
+						<label style={{ display: "block", marginBottom: 6 }}>
+							<input
+								type="checkbox"
+								checked={action.enabled}
+								onChange={(e) =>
+									updateAction(key, { enabled: e.target.checked })
+								}
+							/>{" "}
+							<strong>{key.replace(/_/g, " ")}</strong>
+						</label>
+
 						<input
-							type="checkbox"
-							checked={action.enabled}
-							onChange={(e) => updateAction(key, { enabled: e.target.checked })}
-						/>{" "}
-						<strong>{key.replace(/_/g, " ")}</strong>
-					</label>
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={action.sensitivity}
+							disabled={!action.enabled}
+							onChange={(e) =>
+								updateAction(key, {
+									sensitivity: Number(e.target.value),
+								})
+							}
+							style={{ width: "100%" }}
+						/>
 
-					<input
-						type="range"
-						min="0"
-						max="1"
-						step="0.01"
-						value={action.sensitivity}
-						disabled={!action.enabled}
-						onChange={(e) =>
-							updateAction(key, {
-								sensitivity: Number(e.target.value),
-							})
-						}
-						style={{ width: "100%" }}
-					/>
-
-					<div style={{ fontSize: 12, opacity: 0.7 }}>
-						Чувствительность: {action.sensitivity.toFixed(2)}
+						<div style={{ fontSize: 12, opacity: 0.7 }}>
+							Чувствительность: {action.sensitivity.toFixed(2)}
+						</div>
 					</div>
-				</div>
-			))}
+				))}
+			</div>
+
+			{/* YOLO SWITCH */}
+			<div style={{ marginTop: 50 }}>
+				<label style={{ display: "block", marginBottom: 0 }}>
+					<input
+						type="checkbox"
+						checked={settings.useObjectDetection}
+						onChange={(e) => toggleObjectDetection(e.target.checked)}
+					/>{" "}
+					Использовать детекцию объектов (YOLO)
+				</label>
+
+				<p style={{ fontSize: 13, color: "#666" }}>
+					Если выключено, анализ проводится по всей сцене целиком. Подходит для
+					выявления массовых и контекстных аномалий.
+				</p>
+			</div>
 
 			<button
 				onClick={saveSettings}
@@ -131,6 +156,7 @@ export const DetectionSettings = () => {
 					border: "none",
 					borderRadius: 4,
 					cursor: "pointer",
+					marginTop: 50,
 				}}
 			>
 				{saving ? "Сохраняем..." : "Сохранить"}

@@ -1,5 +1,6 @@
 FRAME_WINDOW = 32
 ANOMALY_MODEL_PATH = "suspicious_actions.pth"
+YOLO_MODEL_PATH = "yolov8n.onnx"
 KINETICS_LABELS = "kinetics400_labels.json"
 
 SECRET_KEY = "AIS_AI_SECRET_KEY"
@@ -45,7 +46,8 @@ ROLES = {
 }
 
 DEFAULT_SETTINGS = {
-    "detection": ACTIONS
+    "detection": ACTIONS,
+    "useObjectDetection": False,
 }
 
 CLASS_TO_ACTION = {

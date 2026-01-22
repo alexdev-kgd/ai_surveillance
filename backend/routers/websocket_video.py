@@ -8,35 +8,50 @@ from PIL import Image
 from services.anomaly_predictor import anomaly_model_predict
 from core.config import KINETICS_LABELS
 from services.event import create_event
+from services.settings import get_settings
+from services.anomaly_predictor import (
+    analyze_with_yolo,
+    analyze_scene,
+)
 from core.db import get_db
 
 router = APIRouter(tags=["Video Stream"])
 
-@router.websocket("/ws/video/")
+@router.websocket("/ws/video")
 async def websocket_video(ws: WebSocket):
     await ws.accept()
 
     db = get_db()
+
+    settings = get_settings() or {}
+    use_yolo = settings.get("useObjectDetection", True)
 
     with open(KINETICS_LABELS) as f:
         name_to_id = json.load(f)
         id_to_name = {v: k.strip('"') for k, v in name_to_id.items()}
 
     try:
+        frame_idx = 0
+
         while True:
             data = await ws.receive_text()
             img_bytes = base64.b64decode(data)
             img = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             frame = np.array(img)
 
-            annotatannotated_frameed = frame.copy()
+            annotated_frame = frame.copy()
             detections = []
+            frame_idx += 1
 
-            label, _ = anomaly_model_predict(annotated_frame)
-            color = (0, 255, 0) if label == "normal" else (255, 0, 0)
-            cv2.putText(annotated_frame, label, (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-            detections.append({"label": label})
+            result = (
+                analyze_with_yolo(annotated_frame, frame_idx)
+                if use_yolo
+                else analyze_scene(annotated_frame, frame_idx)
+            )
+
+            label = result["label"]
+            confidence = result["confidence"]
+            detections = result["detections"]
 
             if label != "normal":
                 create_event(db=db, event_type=label,
@@ -46,7 +61,10 @@ async def websocket_video(ws: WebSocket):
             _, encoded = cv2.imencode(".jpg", rgb_annotated)
             frame_b64 = base64.b64encode(encoded).decode("utf-8")
 
-            await ws.send_json({"detections": detections, "frame": frame_b64})
+            await ws.send_json({
+                "detections": detections,
+                "frame": frame_b64
+            })
 
     except WebSocketDisconnect:
         print("Client disconnected")

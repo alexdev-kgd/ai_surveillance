@@ -2,7 +2,11 @@ import cv2
 import os
 import numpy as np
 from datetime import datetime
-from services.anomaly_predictor import anomaly_model_predict
+from services.settings import get_settings
+from services.anomaly_predictor import (
+    analyze_with_yolo,
+    analyze_scene,
+)
 
 STATIC_DIR = "static/processed"
 
@@ -21,7 +25,10 @@ def analyze_video_file(path: str):
     out = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
 
     total_frames = 0
-    detections_summary = []
+    detections = []
+
+    settings = get_settings() or {}
+    use_yolo = settings["useObjectDetection"]
 
     while True:
         ret, frame = cap.read()
@@ -31,26 +38,16 @@ def analyze_video_file(path: str):
         total_frames += 1
         annotated_frame = frame.copy()
 
-        # Action prediction
-        label, confidence = anomaly_model_predict(annotated_frame)
-        color = (0, 255, 0) if label == "normal" else (0, 0, 255)
-        cv2.putText(
-            annotated_frame,
-            f"{label} ({confidence:.2f})",
-            (10, 20),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.7,
-            color,
-            2,
+        result = (
+            analyze_with_yolo(annotated_frame, total_frames)
+            if use_yolo
+            else analyze_scene(annotated_frame, total_frames)
         )
 
-        detections_summary.append({
-            "frame": total_frames,
-            "label": label,
-            "confidence": confidence,
-        })
+        detections.extend(result["detections"])
 
-        out.write(annotated_frame)
+        rgb_annotated = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
+        out.write(rgb_annotated)
 
     cap.release()
     out.release()
@@ -58,6 +55,6 @@ def analyze_video_file(path: str):
     return {
         "total_frames": total_frames,
         "fps": fps,
-        "detections": detections_summary,
+        "detections": detections,
         "video_path": f"static/processed/{output_filename}"
     }
