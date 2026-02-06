@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc, and_,  or_, cast, String
+from sqlalchemy import select, func, desc, and_,  or_, cast, String, label
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -54,7 +54,7 @@ async def get_audit_logs(
 
         filters.append(
             or_(
-                User.email.ilike(f"%{search}%"),
+                User.id.ilike(f"%{search}%"),
                 AuditLog.action.in_(mapped_actions) if mapped_actions else False,
                 User.role.has(Role.name.in_(mapped_roles)) if mapped_roles else False
             )
@@ -66,7 +66,7 @@ async def get_audit_logs(
             AuditLog.action,
             AuditLog.details,
             AuditLog.created_at,
-            User.email,
+            User.id.label("userId"),
             Role.name.label("role")
         )
         .join(User, User.id == AuditLog.user_id)

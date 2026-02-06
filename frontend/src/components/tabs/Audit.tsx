@@ -156,7 +156,7 @@ export default function Audit() {
 				<thead style={{ backgroundColor: "#000000" }}>
 					<tr>
 						<th style={cellStyle}>Время</th>
-						<th style={cellStyle}>Пользователь</th>
+						<th style={cellStyle}>ID Пользователя</th>
 						<th style={cellStyle}>Роль</th>
 						<th style={cellStyle}>Действие</th>
 						<th style={cellStyle}>Подробности</th>
@@ -168,7 +168,7 @@ export default function Audit() {
 							<td style={cellStyle}>
 								{new Date(log.created_at).toLocaleString()}
 							</td>
-							<td style={cellStyle}>{log.email}</td>
+							<td style={cellStyle}>{log.userId}</td>
 							<td style={cellStyle}>{ROLE_NAMES[log.role] ?? log.role}</td>
 							<td style={cellStyle}>
 								{AUDIT_ACTION_LABELS[log.action] ?? log.action}

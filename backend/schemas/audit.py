@@ -7,7 +7,7 @@ class AuditLogOut(BaseModel):
     action: str
     details: Optional[Any]
     created_at: datetime
-    email: str
+    userId: int
     role: str
 
 class AuditLogPage(BaseModel):
