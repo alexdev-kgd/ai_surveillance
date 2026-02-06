@@ -12,6 +12,11 @@ ACTION_LABELS = {
     "permissionSettingsAccess": "Просмотр настроек разрешений пользователей",
     "auditAccess": "Просмотр аудита",
     "videoAnalysis": "Анализ видео",
+    "cameraSettingsAccess": "Просмотр настроек камер",
+    "cameraAdded": "Добавлена новая камера",
+    "cameraDeleted": "Камера удалена",
+    "cameraEnabled": "Камера включена",
+    "cameraDisabled": "Камера выключена",
 }
 
 ROLE_LABELS_REVERSE = {v.lower(): k for k, v in ROLE_LABELS.items()}

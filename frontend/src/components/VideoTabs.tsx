@@ -16,6 +16,7 @@ import { Settings } from "./tabs/settings/Settings";
 import { CustomTabPanel } from "./CustomTabPanel";
 import Audit from "./tabs/Audit";
 import type { IEvent } from "@interfaces/event.interface";
+import MultiCameraView from "./tabs/liveCameras/MultiCameraView";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
@@ -54,7 +55,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 					<Tab
 						icon={<VideocamIcon />}
 						iconPosition="start"
-						label="Веб-камера"
+						label="Камеры"
 						id="tab-1"
 					/>
 					<Tab
@@ -92,7 +93,8 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 			</CustomTabPanel>
 			<CustomTabPanel value={value} index={1}>
 				<div style={{ flex: 1 }}>
-					<LiveStream />
+					{/* <LiveStream /> */}
+					<MultiCameraView />
 				</div>
 				<div style={{ width: 320 }}>
 					<EventList events={events} />
