@@ -1,4 +1,3 @@
-# backend/video_processor.py
 import cv2
 import threading
 import time
@@ -8,7 +7,7 @@ import json
 import mediapipe as mp
 from typing import Set
 from action_recognizer import SimpleActionClassifier
-from db import log_event
+# from db import log_event
 
 mp_pose = mp.solutions.pose
 
@@ -41,36 +40,36 @@ def get_mjpeg_generator():
             time.sleep(0.03)  # ~30 FPS max throttle
     return gen()
 
-def broadcast_event(payload: dict):
-    """
-    Отсылает JSON payload всем подключенным websocket-клиентам (асинхронно)
-    """
-    # логируем в БД
-    try:
-        log_event(payload.get("event_type", "event"), 
-                  camera=payload.get("camera"),
-                  details=json.dumps(payload))
-    except Exception:
-        pass
+# def broadcast_event(payload: dict):
+#     """
+#     Отсылает JSON payload всем подключенным websocket-клиентам (асинхронно)
+#     """
+#     # логируем в БД
+#     try:
+#         log_event(payload.get("event_type", "event"), 
+#                   camera=payload.get("camera"),
+#                   details=json.dumps(payload))
+#     except Exception:
+#         pass
 
-    with _clients_lock:
-        to_send = list(_clients)
+#     with _clients_lock:
+#         to_send = list(_clients)
 
-    async def _send_all():
-        disconnected = []
-        for ws in to_send:
-            try:
-                await ws.send_json(payload)
-            except Exception:
-                disconnected.append(ws)
-        # удалить отключенные
-        if disconnected:
-            with _clients_lock:
-                for w in disconnected:
-                    _clients.discard(w)
+#     async def _send_all():
+#         disconnected = []
+#         for ws in to_send:
+#             try:
+#                 await ws.send_json(payload)
+#             except Exception:
+#                 disconnected.append(ws)
+#         # удалить отключенные
+#         if disconnected:
+#             with _clients_lock:
+#                 for w in disconnected:
+#                     _clients.discard(w)
 
-    if _event_loop is not None:
-        asyncio.run_coroutine_threadsafe(_send_all(), _event_loop)
+#     if _event_loop is not None:
+#         asyncio.run_coroutine_threadsafe(_send_all(), _event_loop)
 
 # helpers to manage websockets
 def register_client(ws):

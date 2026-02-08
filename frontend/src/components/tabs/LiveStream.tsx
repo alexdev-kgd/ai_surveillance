@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import { WSbaseURL } from "@api/ws";
+import { useEffect, useRef, useState } from "react";
 
 export default function LiveStream() {
 	const videoRef = useRef<HTMLVideoElement>(null);
@@ -6,14 +7,28 @@ export default function LiveStream() {
 	const [ws, setWs] = useState<WebSocket | null>(null);
 	const [prediction, setPrediction] = useState<any>(null);
 
-	// Websocket Setup and Response Handling
+	// Create WebSocket ONCE
 	useEffect(() => {
-		const socket = new WebSocket("ws://127.0.0.1:8000/ws/video/");
-		socket.onmessage = (event) => {
+		const socket = new WebSocket(`${WSbaseURL}/video`);
+		setWs(socket);
+
+		socket.onopen = () => console.log("WebSocket connected");
+		socket.onclose = () => console.log("WebSocket closed");
+		socket.onerror = (err) => console.error("WebSocket error", err);
+
+		// Cleanup on unmount
+		return () => socket.close();
+	}, []);
+
+	// Handle messages
+	useEffect(() => {
+		if (!ws) return;
+
+		ws.onmessage = (event) => {
 			const msg = JSON.parse(event.data);
 			setPrediction(msg.prediction);
 
-			// draw server-annotated frame
+			// Draw server-annotated frame
 			if (canvasRef.current) {
 				const ctx = canvasRef.current.getContext("2d");
 				const img = new Image();
@@ -25,11 +40,9 @@ export default function LiveStream() {
 				img.src = "data:image/jpeg;base64," + msg.frame;
 			}
 		};
-		setWs(socket);
-		return () => socket.close();
-	}, []);
+	}, [ws]);
 
-	// capture frames from webcam and send
+	// Capture frames from webcam and send
 	useEffect(() => {
 		if (!ws) return;
 
@@ -47,8 +60,8 @@ export default function LiveStream() {
 				const sendFrame = () => {
 					if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
 					const canvas = document.createElement("canvas");
-					canvas.width = 224;
-					canvas.height = 224;
+					canvas.width = 700;
+					canvas.height = 700;
 					const ctx = canvas.getContext("2d");
 					ctx?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 					canvas.toBlob((blob) => {
@@ -72,21 +85,31 @@ export default function LiveStream() {
 			}
 		};
 
-		startCamera();
+		if (ws.readyState === WebSocket.OPEN) startCamera();
+		else ws.onopen = startCamera;
 	}, [ws]);
 
 	return (
-		<div className="w-50">
+		<>
 			<h3>Прямой поток (MJPEG)</h3>
 
 			<video ref={videoRef} autoPlay playsInline hidden />
-			<canvas ref={canvasRef} className="w-96 h-72 rounded-xl shadow-lg" />
+			<canvas
+				ref={canvasRef}
+				className="rounded-xl shadow-lg"
+				style={{
+					marginTop: 16,
+					width: "700px",
+					height: "700px",
+					borderRadius: 8,
+				}}
+			/>
 
 			<div className="mt-4 text-lg font-bold text-blue-600 break-words">
 				{prediction
 					? `Prediction: ${JSON.stringify(prediction)}`
 					: "Waiting..."}
 			</div>
-		</div>
+		</>
 	);
 }
