@@ -8,6 +8,7 @@ from PIL import Image
 from services.anomaly_predictor import anomaly_model_predict
 from core.config import KINETICS_LABELS, FRONTEND_LABELS
 from services.event import create_event
+from services.mail import add_event as add_email_event, send_sms_notification
 from services.settings import get_settings
 from services.anomaly_predictor import (
     analyze_with_yolo,
@@ -17,11 +18,13 @@ from core.db import get_db
 
 router = APIRouter(tags=["Video Stream"])
 
+
 @router.websocket("/ws/video")
 async def websocket_video(ws: WebSocket):
     await ws.accept()
 
-    db = get_db()
+    db_gen = get_db()
+    db = await anext(db_gen)
 
     settings = get_settings() or {}
     use_yolo = settings.get("useObjectDetection", True)
@@ -32,6 +35,7 @@ async def websocket_video(ws: WebSocket):
 
     try:
         frame_idx = 0
+        suspicious_streak = 0
 
         while True:
             data = await ws.receive_text()
@@ -55,10 +59,21 @@ async def websocket_video(ws: WebSocket):
             detections = result["detections"]
 
             if label != FRONTEND_LABELS["normal"]:
-                create_event(db=db, event_type=label,
-                                camera="Camera 1", details="Автоопределено")
+                suspicious_streak += 1
+                await create_event(
+                    db=db,
+                    event_type=label,
+                    camera="Camera 1",
+                    details="Auto-detected",
+                )
 
-            annotated_frame = result['frame_data']
+                if suspicious_streak == 10:
+                    add_email_event(f"{label} on Camera 1")
+                    send_sms_notification(label)
+            else:
+                suspicious_streak = 0
+
+            annotated_frame = result["frame_data"]
             _, encoded = cv2.imencode(".jpg", annotated_frame)
             frame_b64 = base64.b64encode(encoded).decode("utf-8")
 
@@ -70,4 +85,4 @@ async def websocket_video(ws: WebSocket):
     except WebSocketDisconnect:
         print("Client disconnected")
     finally:
-        db.close()
+        await db_gen.aclose()
