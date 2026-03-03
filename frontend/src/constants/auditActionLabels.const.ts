@@ -7,4 +7,9 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
 	permissionSettingsAccess: "Просмотр настроек разрешений пользователей",
 	auditAccess: "Просмотр аудита",
 	videoAnalysis: "Анализ видео",
+	cameraSettingsAccess: "Просмотр настроек камер",
+	cameraAdded: "Добавлена новая камера",
+	cameraDeleted: "Камера удалена",
+	cameraEnabled: "Камера включена",
+	cameraDisabled: "Камера выключена",
 };
