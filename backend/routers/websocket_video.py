@@ -1,12 +1,12 @@
 import json
 import base64
 import io
+import time
 import numpy as np
 import cv2
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from PIL import Image
-from services.anomaly_predictor import anomaly_model_predict
 from core.config import FRONTEND_LABELS
 from core.cameras import CAMERAS
 from services.event import create_event
@@ -23,9 +23,10 @@ from services.rtsp_reader import RTSPCameraReader
 
 router = APIRouter(tags=["Video Stream"])
 
+EVENT_LOG_COOLDOWN_SECONDS = 2.0
+
 @router.websocket("/ws/video/{camera_id}")
 async def websocket_video(ws: WebSocket, camera_id: str):
-    # Resolve camera from static map or DB
     camera = CAMERAS.get(camera_id)
     db = None
 
@@ -60,6 +61,8 @@ async def websocket_video(ws: WebSocket, camera_id: str):
     use_yolo = settings.get("useObjectDetection", True)
 
     frame_idx = 0
+    last_logged_at_by_label: dict[str, float] = {}
+    camera_name = camera.get("name", camera_id)
 
     try:
         if str(camera["type"]).upper() in ("WEBCAM", "USB"):
@@ -78,13 +81,15 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     frame, frame_idx, use_yolo
                 )
 
-                if label != FRONTEND_LABELS["normal"]:
-                    await create_event(
-                        db=db,
-                        event_type=label,
-                        camera="Camera 1",
-                        details="Автоопределено",
-                    )
+                await save_suspicious_event(
+                    db=db,
+                    camera_id=camera_id,
+                    camera_name=camera_name,
+                    label=label,
+                    confidence=confidence,
+                    frame_idx=frame_idx,
+                    last_logged_at_by_label=last_logged_at_by_label,
+                )
 
                 await send_frame(ws, annotated, detections)
 
@@ -96,13 +101,13 @@ async def websocket_video(ws: WebSocket, camera_id: str):
             if reader is None:
                 rtsp_url = camera.get("rtsp")
                 if not rtsp_url:
-                    await ws.send_json({
-                        "error": f"Camera {camera.get('name', camera_id)} has no RTSP url"
-                    })
+                    await ws.send_json(
+                        {"error": f"Camera {camera.get('name', camera_id)} has no RTSP url"}
+                    )
                     await ws.close(code=1011)
                     return
 
-                reader = RTSPCameraReader(rtsp_url, camera.get("name", camera_id))
+                reader = RTSPCameraReader(rtsp_url, camera_name)
                 reader.start()
                 CAMERA_READERS[camera_id] = reader
 
@@ -120,13 +125,15 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     frame, frame_idx, use_yolo
                 )
 
-                if label != FRONTEND_LABELS["normal"]:
-                    await create_event(
-                        db=db,
-                        event_type=label,
-                        camera=camera["name"],
-                        details="Автоопределено",
-                    )
+                await save_suspicious_event(
+                    db=db,
+                    camera_id=camera_id,
+                    camera_name=camera_name,
+                    label=label,
+                    confidence=confidence,
+                    frame_idx=frame_idx,
+                    last_logged_at_by_label=last_logged_at_by_label,
+                )
 
                 await send_frame(ws, annotated, detections)
                 await asyncio.sleep(0.2)  # ~5 FPS
@@ -153,6 +160,39 @@ def process_frame(frame, frame_idx, use_yolo):
         result["label"],
         result["confidence"],
     )
+
+async def save_suspicious_event(
+    db,
+    camera_id: str,
+    camera_name: str,
+    label: str,
+    confidence: float,
+    frame_idx: int,
+    last_logged_at_by_label: dict[str, float],
+):
+    if label == FRONTEND_LABELS["normal"]:
+        return
+
+    now = time.monotonic()
+    last_logged_at = last_logged_at_by_label.get(label, 0.0)
+    if now - last_logged_at < EVENT_LOG_COOLDOWN_SECONDS:
+        return
+
+    await create_event(
+        db=db,
+        event_type=label,
+        camera=camera_name,
+        details=json.dumps(
+            {
+                "ID камеры": camera_id,
+                "Кадр": frame_idx,
+                "Уверенность": round(float(confidence), 4),
+            },
+            ensure_ascii=False,
+        ),
+    )
+
+    last_logged_at_by_label[label] = now
 
 async def send_frame(ws: WebSocket, frame, detections):
     _, encoded = cv2.imencode(".jpg", frame)

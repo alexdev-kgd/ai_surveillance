@@ -1,9 +1,14 @@
 import type { ICamera, ICameraConfig } from "@interfaces/camera.interface";
+import type { ILiveDetectionEvent } from "@interfaces/liveDetectionEvent.interface";
 import CameraTile from "./CameraTile";
 import { api, baseURL } from "@api/axios";
 import { useState, useEffect } from "react";
 
-export default function MultiCameraView() {
+interface Props {
+	onSuspiciousDetection?: (event: ILiveDetectionEvent) => void;
+}
+
+export default function MultiCameraView({ onSuspiciousDetection }: Props) {
 	const [cameras, setCameras] = useState<ICameraConfig[]>([]);
 	const [loading, setLoading] = useState(true);
 
@@ -41,7 +46,11 @@ export default function MultiCameraView() {
 			}}
 		>
 			{cameras.map((cam) => (
-				<CameraTile key={cam.id} camera={cam} />
+				<CameraTile
+					key={cam.id}
+					camera={cam}
+					onSuspiciousDetection={onSuspiciousDetection}
+				/>
 			))}
 		</div>
 	);

@@ -8,7 +8,6 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 
 import UploadForm from "./tabs/UploadForm";
 import Results from "./tabs/Results";
-import LiveStream from "./tabs/LiveStream";
 import EventList from "./tabs/EventList";
 import EventLogs from "./tabs/EventLogs";
 import { useAuth } from "@context/AuthContext";
@@ -17,6 +16,7 @@ import { CustomTabPanel } from "./CustomTabPanel";
 import Audit from "./tabs/Audit";
 import type { IEvent } from "@interfaces/event.interface";
 import MultiCameraView from "./tabs/liveCameras/MultiCameraView";
+import type { ILiveDetectionEvent } from "@interfaces/liveDetectionEvent.interface";
 
 interface Props {
 	setResult: React.Dispatch<React.SetStateAction<any>>;
@@ -27,6 +27,9 @@ interface Props {
 export default function VideoTabs({ setResult, result, events }: Props) {
 	const [value, setValue] = useState(0);
 	const [loading, setLoading] = useState(false);
+	const [liveSuspiciousEvents, setLiveSuspiciousEvents] = useState<
+		ILiveDetectionEvent[]
+	>([]);
 
 	const { user } = useAuth();
 
@@ -35,6 +38,10 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 
 	const handleChange = (_event: React.SyntheticEvent, newValue: number) => {
 		setValue(newValue);
+	};
+
+	const handleSuspiciousDetection = (event: ILiveDetectionEvent) => {
+		setLiveSuspiciousEvents((prev) => [event, ...prev].slice(0, 50));
 	};
 
 	return (
@@ -92,12 +99,16 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 				{!loading && <Results result={result} />}
 			</CustomTabPanel>
 			<CustomTabPanel value={value} index={1}>
-				<div style={{ flex: 1 }}>
-					{/* <LiveStream /> */}
-					<MultiCameraView />
-				</div>
-				<div style={{ width: 320 }}>
-					<EventList events={events} />
+				<div>
+					<div style={{ flex: 1 }}>
+						{/* <LiveStream /> */}
+						<MultiCameraView
+							onSuspiciousDetection={handleSuspiciousDetection}
+						/>
+					</div>
+					<div>
+						<EventList events={events} liveEvents={liveSuspiciousEvents} />
+					</div>
 				</div>
 			</CustomTabPanel>
 			<CustomTabPanel value={value} index={2}>

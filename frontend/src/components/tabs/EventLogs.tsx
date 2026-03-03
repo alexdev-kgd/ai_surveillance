@@ -2,6 +2,8 @@ import axios from "axios";
 import React, { useEffect } from "react";
 import { baseURL } from "@api/axios";
 import type { IEvent } from "@interfaces/event.interface";
+import { formatDateTime } from "../../utils/formatDateTime";
+import { formatDetails } from "../../utils/formatDetails";
 
 export default function EventLogs() {
 	const [events, setEvents] = React.useState<IEvent[]>([]);
@@ -32,7 +34,7 @@ export default function EventLogs() {
 					border: "1px solid #ccc",
 				}}
 			>
-				<thead style={{ backgroundColor: "#000000" }}>
+				<thead style={{ backgroundColor: "#f7f7f7" }}>
 					<tr>
 						<th style={cellStyle}>Действие</th>
 						<th style={cellStyle}>Камера</th>
@@ -46,10 +48,10 @@ export default function EventLogs() {
 							<tr key={idx}>
 								<td style={cellStyle}>{ev.event_type}</td>
 								<td style={cellStyle}>{ev.camera}</td>
-								<td style={cellStyle}>
-									{new Date(ev.timestamp).toLocaleTimeString("ru-RU")}
+								<td style={cellStyle}>{formatDateTime(ev.timestamp)}</td>
+								<td style={{ ...cellStyle, textAlign: "left" }}>
+									<pre style={detailsStyle}>{formatDetails(ev.details)}</pre>
 								</td>
-								<td style={cellStyle}>{ev.details}</td>
 							</tr>
 						);
 					})}
@@ -63,4 +65,12 @@ const cellStyle: React.CSSProperties = {
 	border: "1px solid #ddd",
 	padding: "6px 8px",
 	textAlign: "center",
+};
+
+const detailsStyle: React.CSSProperties = {
+	margin: 0,
+	whiteSpace: "pre-wrap",
+	wordBreak: "break-word",
+	fontFamily: "monospace",
+	fontSize: 12,
 };

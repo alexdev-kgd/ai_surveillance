@@ -1,17 +1,24 @@
 import { WSbaseURL } from "@api/ws";
 import type { ICameraConfig } from "@interfaces/camera.interface";
+import { DETECTED_ACTION_LABELS } from "@constants/detectedActionLabels.const";
+import type { ILiveCameraFrameMessage } from "@interfaces/liveDetection.interface";
+import type { ILiveDetectionEvent } from "@interfaces/liveDetectionEvent.interface";
 import { useEffect, useRef, useState } from "react";
 
 interface Props {
 	camera: ICameraConfig;
+	onSuspiciousDetection?: (event: ILiveDetectionEvent) => void;
 }
 
-export default function CameraTile({ camera }: Props) {
+const LIVE_STREAM_FPS = 5;
+const DETECTION_COOLDOWN_MS = 2000;
+
+export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const lastReportedAtRef = useRef<Record<string, number>>({});
 
 	const [ws, setWs] = useState<WebSocket | null>(null);
-	const [prediction, setPrediction] = useState<unknown>(null);
 
 	// --- WS ---
 	useEffect(() => {
@@ -33,8 +40,32 @@ export default function CameraTile({ camera }: Props) {
 		if (!ws) return;
 
 		ws.onmessage = (event) => {
-			const msg = JSON.parse(event.data);
-			setPrediction(msg.prediction);
+			const msg = JSON.parse(event.data) as Partial<ILiveCameraFrameMessage>;
+			const detections = Array.isArray(msg.detections) ? msg.detections : [];
+			const suspicious = detections
+				.filter((detection) => detection.label !== DETECTED_ACTION_LABELS.normal)
+				.sort((a, b) => b.confidence - a.confidence);
+
+			if (suspicious.length > 0 && onSuspiciousDetection) {
+				const topDetection = suspicious[0];
+				const deduplicationKey = `${camera.id}:${topDetection.label}`;
+				const now = Date.now();
+				const lastReportedAt = lastReportedAtRef.current[deduplicationKey] ?? 0;
+
+				if (now - lastReportedAt > DETECTION_COOLDOWN_MS) {
+					onSuspiciousDetection({
+						id: `${camera.id}-${topDetection.label}-${topDetection.frame}-${now}`,
+						cameraId: camera.id,
+						cameraName: camera.name,
+						frame: topDetection.frame,
+						label: topDetection.label,
+						confidence: topDetection.confidence,
+						timeSec: topDetection.frame / LIVE_STREAM_FPS,
+						detectedAt: new Date(now).toISOString(),
+					});
+					lastReportedAtRef.current[deduplicationKey] = now;
+				}
+			}
 
 			if (!canvasRef.current) return;
 
@@ -63,7 +94,7 @@ export default function CameraTile({ camera }: Props) {
 				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 			};
 
-			img.src = "data:image/jpeg;base64," + msg.frame;
+			img.src = "data:image/jpeg;base64," + (msg.frame ?? "");
 		};
 	}, [ws, camera.source]);
 
