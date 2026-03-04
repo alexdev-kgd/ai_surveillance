@@ -12,7 +12,10 @@ import {
 } from "@mui/material";
 import { ROLE_NAMES } from "../../constants/roleNames.const";
 import { Dayjs } from "dayjs";
-import { DatePicker } from "@mui/x-date-pickers";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { ruRU } from "@mui/x-date-pickers/locales";
+import "dayjs/locale/ru";
 import type { IAuditLog } from "../../interfaces/auditLog.interface";
 
 export default function Audit() {
@@ -86,7 +89,7 @@ export default function Audit() {
 		<>
 			<Box display="flex" gap={2} mb={2} alignItems="stretch">
 				<TextField
-					label="Search"
+					label="Поиск"
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
 					fullWidth
@@ -130,19 +133,27 @@ export default function Audit() {
 					))}
 				</Select>
 
-				<DatePicker
-					label="От"
-					value={dateFrom}
-					onChange={(newValue) => setDateFrom(newValue)}
-					slotProps={{ textField: datePickerTextFieldProps }}
-				/>
+				<LocalizationProvider
+					dateAdapter={AdapterDayjs}
+					adapterLocale="ru"
+					localeText={
+						ruRU.components.MuiLocalizationProvider.defaultProps.localeText
+					}
+				>
+					<DatePicker
+						label="От"
+						value={dateFrom}
+						onChange={(newValue) => setDateFrom(newValue)}
+						slotProps={{ textField: datePickerTextFieldProps }}
+					/>
 
-				<DatePicker
-					label="До"
-					value={dateTo}
-					onChange={(newValue) => setDateTo(newValue)}
-					slotProps={{ textField: datePickerTextFieldProps }}
-				/>
+					<DatePicker
+						label="До"
+						value={dateTo}
+						onChange={(newValue) => setDateTo(newValue)}
+						slotProps={{ textField: datePickerTextFieldProps }}
+					/>
+				</LocalizationProvider>
 			</Box>
 
 			<table
@@ -183,6 +194,16 @@ export default function Audit() {
 				component="div"
 				count={total}
 				page={page}
+				labelRowsPerPage="Строк на странице:"
+				labelDisplayedRows={({ from, to, count }) =>
+					`${from}–${to} из ${count !== -1 ? count : `более ${to}`}`
+				}
+				getItemAriaLabel={(type) => {
+					if (type === "first") return "Первая страница";
+					if (type === "last") return "Последняя страница";
+					if (type === "next") return "Следующая страница";
+					return "Предыдущая страница";
+				}}
 				onPageChange={(_, newPage) => setPage(newPage)}
 				rowsPerPage={rowsPerPage}
 				onRowsPerPageChange={(e) => {

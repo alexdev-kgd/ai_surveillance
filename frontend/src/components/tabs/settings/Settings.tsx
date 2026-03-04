@@ -2,9 +2,11 @@ import { useState } from "react";
 import { Tabs, Tab } from "@mui/material";
 import HubIcon from "@mui/icons-material/Hub";
 import PersonIcon from "@mui/icons-material/Person";
+import VideocamIcon from "@mui/icons-material/Videocam";
 import { DetectionSettings } from "./tabs/DetectionSettings";
 import { PermissionsSettings } from "./tabs/PermissionsSettings";
 import { CustomTabPanel } from "@components/CustomTabPanel";
+import { CameraSettings } from "./tabs/CameraSettings";
 
 export const Settings = () => {
 	const [tabValue, setTabValue] = useState(0);
@@ -33,6 +35,12 @@ export const Settings = () => {
 					label="Управление разрешениями"
 					id="tab-1"
 				/>
+				<Tab
+					icon={<VideocamIcon />}
+					iconPosition="start"
+					label="Управление камерами"
+					id="tab-2"
+				/>
 			</Tabs>
 
 			<CustomTabPanel value={tabValue} index={0}>
@@ -40,6 +48,9 @@ export const Settings = () => {
 			</CustomTabPanel>
 			<CustomTabPanel value={tabValue} index={1}>
 				<PermissionsSettings></PermissionsSettings>
+			</CustomTabPanel>
+			<CustomTabPanel value={tabValue} index={2}>
+				<CameraSettings></CameraSettings>
 			</CustomTabPanel>
 		</>
 	);
