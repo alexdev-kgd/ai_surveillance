@@ -10,46 +10,14 @@ load_dotenv()
 
 SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
 SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-EMAIL_FROM = os.getenv("EMAIL_FROM")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
-EMAIL_TO = os.getenv("EMAIL_TO", EMAIL_FROM)
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-SMS_FROM = os.getenv("SMS_FROM")
-SMS_TO = os.getenv("SMS_TO")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "aiSurveillanceSystem@security.com")
+EMAIL_TO = os.getenv("EMAIL_TO", "alexpetrov248@gmail.com")
+EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "qbmq rrzl dcmr iahv")
 
 NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", 60))  # seconds
 
 _last_notification_time = datetime.min
 _buffer = []
-
-
-def send_sms_notification(event_desc: str):
-    if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, SMS_FROM, SMS_TO]):
-        print("[SMS] Skipped: отсутствует конфигурация Twilio или номера телефона")
-        return
-
-    body = (
-        "Обнаружена подозрительная активность в 10 последовательных кадрах. "
-        f"Последнее событие: {event_desc}"
-    )
-
-    try:
-        response = requests.post(
-            f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json",
-            data={
-                "From": SMS_FROM,
-                "To": SMS_TO,
-                "Body": body,
-            },
-            auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
-            timeout=10,
-        )
-        response.raise_for_status()
-        print(f"[SMS] Уведомление отправлено на {SMS_TO}")
-    except Exception as e:
-        print(f"[SMS ERROR] {e}")
-
 
 def send_email_notification(events):
     if not events:
@@ -72,7 +40,6 @@ def send_email_notification(events):
             print(f"[MAIL] Notification sent to {EMAIL_TO}")
     except Exception as e:
         print(f"[MAIL ERROR] {e}")
-
 
 def add_event(event_desc: str):
     """Add a suspicious event and check if it's time to notify."""

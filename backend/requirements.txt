@@ -21,3 +21,4 @@ bcrypt==3.2.2
 pydantic
 pydantic[email]
 Pillow
+infobip-api-python-client

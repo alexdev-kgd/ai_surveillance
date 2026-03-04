@@ -8,17 +8,16 @@ import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from PIL import Image
 from core.config import FRONTEND_LABELS
-from core.cameras import CAMERAS
 from services.event import create_event
-from services.mail import add_event as add_email_event, send_sms_notification
+from services.mail import add_event
+from services.sms import send_sms_notification
 from services.settings import get_settings
+from services.camera import get_enabled_camera_by_id
 from services.anomaly_predictor import (
     analyze_with_yolo,
     analyze_scene,
 )
 from core.db import get_db
-from models.camera import Camera
-from sqlalchemy import select
 from core.camera_runtime import CAMERA_READERS
 from services.rtsp_reader import RTSPCameraReader
 
@@ -28,24 +27,8 @@ EVENT_LOG_COOLDOWN_SECONDS = 2.0
 
 @router.websocket("/ws/video/{camera_id}")
 async def websocket_video(ws: WebSocket, camera_id: str):
-    camera = CAMERAS.get(camera_id)
+    camera = await get_enabled_camera_by_id(camera_id)
     db = None
-
-    if camera is None:
-        async for session in get_db():
-            db = session
-            result = await db.execute(
-                select(Camera).where(Camera.id == camera_id, Camera.enabled == True)
-            )
-            camera_row = result.scalar_one_or_none()
-            break
-
-        if camera_row:
-            camera = {
-                "type": camera_row.type,
-                "name": camera_row.name,
-                "rtsp": camera_row.rtsp,
-            }
 
     if camera is None:
         await ws.close(code=1008)
@@ -179,8 +162,8 @@ async def save_suspicious_event(
     if now - last_logged_at < EVENT_LOG_COOLDOWN_SECONDS:
         return
 
-    add_email_event(f"{label} on Camera 1")
-    send_sms_notification(label)
+    add_event(f"{label} on {camera_name}")
+    send_sms_notification(f"{label} на камере {camera_name}")
 
     await create_event(
         db=db,
