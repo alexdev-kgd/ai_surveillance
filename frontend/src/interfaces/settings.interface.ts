@@ -5,5 +5,5 @@ export interface IActionSetting {
 
 export interface ISettings {
 	detection: Record<string, IActionSetting>;
-	roles: Record<string, string[]>;
+	useObjectDetection: boolean;
 }

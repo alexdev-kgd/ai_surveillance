@@ -25,14 +25,16 @@ async def get_settings(
 
     if not settings:
         return SettingsSchema(
-            detection=ACTIONS
+            detection=ACTIONS,
+            useObjectDetection=True,
         )
 
     await load_settings(db)
     await log_action(db, user.id, AuditAction.AI_SETTINGS_ACCESS)
 
     return SettingsSchema(
-        detection=settings.settings["detection"]
+        detection=settings.settings["detection"],
+        useObjectDetection=settings.settings["useObjectDetection"],
     )
 
 @router.put("", response_model=SettingsSchema)

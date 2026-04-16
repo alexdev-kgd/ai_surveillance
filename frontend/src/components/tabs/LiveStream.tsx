@@ -60,8 +60,8 @@ export default function LiveStream() {
 				const sendFrame = () => {
 					if (!videoRef.current || ws.readyState !== WebSocket.OPEN) return;
 					const canvas = document.createElement("canvas");
-					canvas.width = 224;
-					canvas.height = 224;
+					canvas.width = 700;
+					canvas.height = 700;
 					const ctx = canvas.getContext("2d");
 					ctx?.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
 					canvas.toBlob((blob) => {
@@ -90,17 +90,26 @@ export default function LiveStream() {
 	}, [ws]);
 
 	return (
-		<div className="w-50">
+		<>
 			<h3>Прямой поток (MJPEG)</h3>
 
 			<video ref={videoRef} autoPlay playsInline hidden />
-			<canvas ref={canvasRef} className="w-96 h-72 rounded-xl shadow-lg" />
+			<canvas
+				ref={canvasRef}
+				className="rounded-xl shadow-lg"
+				style={{
+					marginTop: 16,
+					width: "700px",
+					height: "700px",
+					borderRadius: 8,
+				}}
+			/>
 
 			<div className="mt-4 text-lg font-bold text-blue-600 break-words">
 				{prediction
 					? `Prediction: ${JSON.stringify(prediction)}`
 					: "Waiting..."}
 			</div>
-		</div>
+		</>
 	);
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import type { IDetection } from "@interfaces/detection.interface";
+import { DETECTED_ACTION_LABELS } from "@constants/detectedActionLabels.const";
 
 interface Props {
 	result: any;
@@ -9,7 +10,8 @@ export default function Results({ result }: Props) {
 	if (!result) return null;
 
 	const suspicious = result.detections.filter(
-		(detection: IDetection) => detection.label !== "normal"
+		(detection: IDetection) =>
+			detection.label !== DETECTED_ACTION_LABELS["normal"]
 	);
 
 	if (suspicious.length === 0)

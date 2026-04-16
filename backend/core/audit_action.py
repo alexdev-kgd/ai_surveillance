@@ -9,3 +9,8 @@ class AuditAction(str, Enum):
     PERMISSION_SETTINGS_ACCESS = "permissionSettingsAccess"
     AUDIT_ACCESS = "auditAccess"
     VIDEO_ANALYSIS = "videoAnalysis"
+    CAMERA_SETTINGS_ACCESS = "cameraSettingsAccess"
+    CAMERA_ADDED = "cameraAdded"
+    CAMERA_DELETED = "cameraDeleted"
+    CAMERA_ENABLED = "cameraEnabled"
+    CAMERA_DISABLED = "cameraDisabled"
