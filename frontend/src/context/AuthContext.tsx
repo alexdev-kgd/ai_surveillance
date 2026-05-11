@@ -3,7 +3,7 @@ import { auth, fetchCurrentUser } from "../services/auth.service";
 import { api } from "../api/axios";
 
 type User = {
-	email: string;
+	login: string;
 	role: string;
 	permissions: string[];
 };
@@ -11,14 +11,14 @@ type User = {
 type AuthContextType = {
 	user: User | null;
 	authLoading: boolean;
-	login: (email: string, password: string) => Promise<void>;
+	signin: (login: string, password: string) => Promise<void>;
 	logout: () => void;
 };
 
 const AuthContext = createContext<AuthContextType>({
 	user: null,
 	authLoading: false,
-	login: async () => {},
+	signin: async () => {},
 	logout: () => {},
 });
 
@@ -26,10 +26,10 @@ export const AuthProvider = ({ children }: any) => {
 	const [user, setUser] = useState<User | null>(null);
 	const [authLoading, setAuthLoading] = useState<boolean>(true);
 
-	const login = async (email: string, password: string) => {
+	const signin = async (login: string, password: string) => {
 		setAuthLoading(true);
 		try {
-			await auth(email, password);
+			await auth(login, password);
 			const userData = await fetchCurrentUser();
 			setUser(userData);
 		} finally {
@@ -61,7 +61,7 @@ export const AuthProvider = ({ children }: any) => {
 	}, []);
 
 	return (
-		<AuthContext.Provider value={{ user, authLoading, login, logout }}>
+		<AuthContext.Provider value={{ user, authLoading, signin, logout }}>
 			{children}
 		</AuthContext.Provider>
 	);

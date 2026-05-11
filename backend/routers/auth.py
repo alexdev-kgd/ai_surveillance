@@ -21,7 +21,7 @@ async def register(
 ):
     await register_user(
         db=db,
-        email=data.email,
+        login=data.login,
         password=data.password,
     )
 
@@ -34,7 +34,7 @@ async def login(
 ):
     user, token = await authenticate_user(
         db=db,
-        email=data.email,
+        login=data.login,
         password=data.password,
     )
 
@@ -63,7 +63,7 @@ async def logout(
 async def me(user: User = Depends(get_current_user)):
     return {
         "id": user.id,
-        "email": user.email,
+        "login": user.login,
         "role": user.role.name,
         "permissions": [p.name for p in user.role.permissions],
     }

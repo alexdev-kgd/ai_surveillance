@@ -14,8 +14,10 @@ dist-ssr
 *.local
 
 *.mp4
+*.sfk
 *.db
 *.pyc
+*.npy
 
 # Editor directories and files
 .vscode/*

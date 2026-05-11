@@ -4,12 +4,12 @@ import "../Auth.css";
 import { useAuth } from "@context/AuthContext";
 
 export default function Auth() {
-	const [email, setEmail] = useState("");
+	const [login, setLogin] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
-	const { login, user, authLoading } = useAuth();
+	const { signin, user, authLoading } = useAuth();
 	const navigate = useNavigate();
 
 	if (!authLoading && user) {
@@ -20,14 +20,14 @@ export default function Auth() {
 		e.preventDefault();
 		setError(null);
 
-		if (!email || !password) {
-			setError("Введите email и пароль");
+		if (!login || !password) {
+			setError("Введите логин и пароль");
 			return;
 		}
 
 		try {
 			setLoading(true);
-			await login(email, password);
+			await signin(login, password);
 			console.log(user);
 			navigate("/");
 		} catch (err: any) {
@@ -43,10 +43,10 @@ export default function Auth() {
 
 			<input
 				className="auth-input"
-				type="email"
-				placeholder="Email"
-				value={email}
-				onChange={(e) => setEmail(e.target.value)}
+				type="text"
+				placeholder="Логин"
+				value={login}
+				onChange={(e) => setLogin(e.target.value)}
 			/>
 
 			<input

@@ -4,9 +4,9 @@ export const hasToken = (): boolean => {
 	return !!localStorage.getItem("token");
 };
 
-export const auth = async (email: string, password: string) => {
+export const auth = async (login: string, password: string) => {
 	try {
-		const res = await authApi.post("/auth/login", { email, password });
+		const res = await authApi.post("/auth/login", { login, password });
 		localStorage.setItem("token", res.data.access_token);
 	} catch (err: any) {
 		throw err;

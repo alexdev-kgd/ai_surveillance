@@ -101,13 +101,11 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 			<CustomTabPanel value={value} index={1}>
 				<div>
 					<div style={{ flex: 1 }}>
-						{/* <LiveStream /> */}
 						<MultiCameraView
 							onSuspiciousDetection={handleSuspiciousDetection}
+							events={events}
+							liveSuspiciousEvents={liveSuspiciousEvents}
 						/>
-					</div>
-					<div>
-						<EventList events={events} liveEvents={liveSuspiciousEvents} />
 					</div>
 				</div>
 			</CustomTabPanel>

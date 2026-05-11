@@ -40,9 +40,7 @@ export default function App() {
 						<ProtectedRoute>
 							<div className="flex flex-col full-width items-center min-h-screen p-5">
 								<div className="flex flex-row space-between full-width gap-5">
-									<h1 className="text-2xl font-bold">
-										АИС: анализ видеопотока — прототип
-									</h1>
+									<h1 className="text-2xl font-bold">Анализ видеопотока</h1>
 									<LogoutButton></LogoutButton>
 								</div>
 								<VideoTabs

@@ -165,7 +165,7 @@ export default function Audit() {
 				}}
 			>
 				<thead style={{ backgroundColor: "#000000" }}>
-					<tr>
+					<tr style={tableRowStyle}>
 						<th style={cellStyle}>Время</th>
 						<th style={cellStyle}>ID Пользователя</th>
 						<th style={cellStyle}>Роль</th>
@@ -219,4 +219,8 @@ const cellStyle: React.CSSProperties = {
 	border: "1px solid #ddd",
 	padding: "6px 8px",
 	textAlign: "center",
+};
+
+const tableRowStyle: React.CSSProperties = {
+	backgroundColor: "#fff",
 };
