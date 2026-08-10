@@ -1,7 +1,7 @@
-FRAME_WINDOW = 16
-ANOMALY_MODEL_PATH = "suspicious_actions.pth"
+FRAME_WINDOW = 48
+STRIDE = 4
+ANOMALY_MODEL_PATH = "suspicious_actions_6classes.pth"
 YOLO_MODEL_PATH = "yolov8n.onnx"
-KINETICS_LABELS = "kinetics400_labels.json"
 ACTIONS_TO_DETECT_CLASS_NAMES = [
     "normal", 
     "assault",
@@ -11,7 +11,7 @@ ACTIONS_TO_DETECT_CLASS_NAMES = [
     "kick",
     "punch",
     "run",
-    "shoot_gun"
+    "shoot_gun",
     "shoplift"
 ]
 
@@ -20,10 +20,6 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 ACTIONS = {
-    "shoplift": {
-        "enabled": True,
-        "sensitivity": 0.7,
-    },
     "assault": {
         "enabled": True,
         "sensitivity": 0.8,
@@ -32,7 +28,19 @@ ACTIONS = {
         "enabled": True,
         "sensitivity": 0.6,
     },
+    "hit": {
+        "enabled": False,
+        "sensitivity": 0.5,
+    },
     "jump": {
+        "enabled": False,
+        "sensitivity": 0.5,
+    },
+    "kick": {
+        "enabled": False,
+        "sensitivity": 0.5,
+    },
+    "punch": {
         "enabled": False,
         "sensitivity": 0.5,
     },
@@ -43,6 +51,10 @@ ACTIONS = {
     "shoot_gun": {
         "enabled": True,
         "sensitivity": 0.9,
+    },
+    "shoplift": {
+        "enabled": True,
+        "sensitivity": 0.7,
     },
 }
 
@@ -63,20 +75,26 @@ DEFAULT_SETTINGS = {
 }
 
 CLASS_TO_ACTION = {
-    "shoplift": "shoplift",
     "assault": "assault",
     "fall_floor": "fall_floor",
+    "hit": "hit",
     "jump": "jump",
+    "kick": "kick",
+    "punch": "punch",
     "run": "run",
     "shoot_gun": "shoot_gun",
+    "shoplift": "shoplift",
 }
 
 FRONTEND_LABELS = {
-    "shoplift": "Кража",
     "assault": "Нападение",
     "fall_floor": "Падение",
+    "hit": "Удар",
     "jump": "Прыжок",
+    "kick": "Удар ногой",
+    "punch": "Удар кулаком",
     "run": "Бег",
     "shoot_gun": "Стрельба из оружия",
+    "shoplift": "Кража",
     "normal": "Нормальное поведение",
 }
