@@ -2,8 +2,8 @@ import os
 import subprocess
 from concurrent.futures import ProcessPoolExecutor
 
-input_root = "../dataset"   # root directory with train/val subfolders
-output_root = "../dataset_clean"
+input_root = "../convert"   # root directory with train/val subfolders
+output_root = "../ready"
 
 def convert_video(task):
     in_path, out_path = task
@@ -12,13 +12,14 @@ def convert_video(task):
     # ffmpeg command: overwrite output, suppress logs
     cmd = [
         "ffmpeg",
-        "-y",  # overwrite if exists
-        "-i", input_path,
+        "-y",
+        "-i", in_path,
         "-vf", "scale=224:224,fps=30",
         "-c:v", "libx264",
         "-pix_fmt", "yuv420p",
-        output_path
+        out_path
     ]
+    print("Converting:", in_path, "->", out_path)
     try:
         subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         print("Converted:", in_path, "->", out_path)
@@ -41,4 +42,4 @@ if __name__ == "__main__":
     print(f"Found {len(videos)} videos to convert.")
 
     with ProcessPoolExecutor(max_workers=8) as ex:
-        ex.map(convert_video, videos)
+        list(ex.map(convert_video, videos))

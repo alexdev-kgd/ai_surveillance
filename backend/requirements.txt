@@ -21,3 +21,5 @@ bcrypt==3.2.2
 pydantic
 Pillow
 infobip-api-python-client
+matplotlib
+tqdm

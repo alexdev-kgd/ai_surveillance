@@ -3,11 +3,11 @@ import cv2
 import torch
 import numpy as np
 
-SOURCE_DIR = "../dataset/train/normal"
-OUTPUT_DIR = "../dataset_cropped/train_full_frame/normal"
+SOURCE_DIR = "../convert"
+OUTPUT_DIR = "../ready/clips"
 
 CLIP_FPS = 30
-CLIP_DURATION = 5
+CLIP_DURATION = 3
 CLIP_FRAMES = CLIP_FPS * CLIP_DURATION
 MIN_FRAMES = 20
 

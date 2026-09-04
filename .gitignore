@@ -14,6 +14,7 @@ dist-ssr
 *.local
 
 *.mp4
+*.avi
 *.sfk
 *.db
 *.pyc

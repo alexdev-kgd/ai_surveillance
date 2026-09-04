@@ -1,97 +1,71 @@
+"""
+Precompute optical flow for the dataset using the same sampling as train/serve.
+
+Sampling: sequential frames every SAMPLE_STRIDE until CLIP_LEN RGB frames,
+then Farneback between consecutive RGB frames → (CLIP_LEN, H, W, 2) after pad.
+"""
 import os
-import cv2
+import sys
+
 import numpy as np
 from tqdm import tqdm
 
-# === CONFIG ===
-DATASET_ROOT = "../dataset"
-FLOW_SUFFIX = "_flow.npy"
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-FLOW_PARAMS = dict(
-    pyr_scale=0.5,
-    levels=3,
-    winsize=15,
-    iterations=3,
-    poly_n=5,
-    poly_sigma=1.2,
-    flags=0,
+from utils.video_preprocess import (
+    CLIP_LEN,
+    FLOW_SUFFIX,
+    FRAME_SIZE,
+    SAMPLE_STRIDE,
+    compute_optical_flow_clip,
+    read_video_strided_rgb,
 )
 
+DATASET_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
 
-def compute_flow(video_path, clip_len=50, size=(224, 224)):
-    cap = cv2.VideoCapture(video_path, cv2.CAP_FFMPEG)
 
-    frames = []
-
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            break
-        frame = cv2.resize(frame, size)
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        frames.append(gray)
-
-    cap.release()
-
+def compute_flow_for_video(video_path: str) -> np.ndarray | None:
+    frames = read_video_strided_rgb(
+        video_path,
+        clip_len=CLIP_LEN,
+        stride=SAMPLE_STRIDE,
+        size=FRAME_SIZE,
+    )
     if len(frames) < 2:
         return None
 
-    # === СЭМПЛИНГ ===
-    indices = np.linspace(0, len(frames) - 1, clip_len).astype(int)
-    frames = [frames[i] for i in indices]
-
-    flows = []
-
-    for prev, curr in zip(frames[:-1], frames[1:]):
-        flow = cv2.calcOpticalFlowFarneback(
-            prev,
-            curr,
-            None,
-            **FLOW_PARAMS
-        )
-        flows.append(flow.astype(np.float32))
-
-    flow = np.array(flows)  # (clip_len-1, H, W, 2)
-
-    # === НОРМАЛИЗАЦИЯ ===
-    max_val = np.abs(flow).max()
-    if max_val > 0:
-        flow = np.clip(flow / max_val, -1, 1)
-
+    # (T, H, W, 2) float32, last flow padded
+    flow = compute_optical_flow_clip(frames, size=FRAME_SIZE, normalize=True)
     return flow.astype(np.float16)
 
 
-def process_dataset(root):
+def process_dataset(root: str = DATASET_ROOT) -> None:
     total_videos = 0
     processed = 0
 
     for split in ["train", "val"]:
         split_dir = os.path.join(root, split)
+        if not os.path.isdir(split_dir):
+            continue
 
         for cls in os.listdir(split_dir):
             cls_dir = os.path.join(split_dir, cls)
-
             if not os.path.isdir(cls_dir):
                 continue
 
             videos = [
-                f for f in os.listdir(cls_dir)
+                f
+                for f in os.listdir(cls_dir)
                 if f.lower().endswith((".mp4", ".avi", ".mov", ".mkv"))
             ]
 
             for video_file in tqdm(videos, desc=f"{split}/{cls}"):
                 total_videos += 1
-
                 video_path = os.path.join(cls_dir, video_file)
                 stem, _ = os.path.splitext(video_path)
                 flow_path = stem + FLOW_SUFFIX
 
-                # skip if already exists
-                # if os.path.exists(flow_path):
-                #     continue
-
-                flow = compute_flow(video_path)
-
+                flow = compute_flow_for_video(video_path)
                 if flow is None:
                     print(f"[WARN] Skipping {video_path} (too short)")
                     continue
@@ -99,9 +73,10 @@ def process_dataset(root):
                 np.save(flow_path, flow)
                 processed += 1
 
-    print(f"\nDone!")
+    print("\nDone!")
     print(f"Total videos: {total_videos}")
     print(f"Processed: {processed}")
+    print(f"CLIP_LEN={CLIP_LEN}, STRIDE={SAMPLE_STRIDE}, size={FRAME_SIZE}")
 
 
 if __name__ == "__main__":

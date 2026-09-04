@@ -61,7 +61,7 @@ async def websocket_video(ws: WebSocket, camera_id: str):
 
                 frame_idx += 1
 
-                annotated, detections, label, confidence = process_frame(
+                annotated, detections, label, confidence, is_alert = process_frame(
                     frame, frame_idx, use_yolo
                 )
 
@@ -73,6 +73,7 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     confidence=confidence,
                     frame_idx=frame_idx,
                     last_logged_at_by_label=last_logged_at_by_label,
+                    is_alert=is_alert,
                 )
 
                 await send_frame(ws, annotated, detections)
@@ -105,7 +106,7 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     continue
 
                 frame_idx += 1
-                annotated, detections, label, confidence = process_frame(
+                annotated, detections, label, confidence, is_alert = process_frame(
                     frame, frame_idx, use_yolo
                 )
 
@@ -117,6 +118,7 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     confidence=confidence,
                     frame_idx=frame_idx,
                     last_logged_at_by_label=last_logged_at_by_label,
+                    is_alert=is_alert,
                 )
 
                 await send_frame(ws, annotated, detections)
@@ -143,6 +145,7 @@ def process_frame(frame, frame_idx, use_yolo):
         result["detections"],
         result["label"],
         result["confidence"],
+        result.get("is_alert", False),
     )
 
 async def save_suspicious_event(
@@ -153,8 +156,10 @@ async def save_suspicious_event(
     confidence: float,
     frame_idx: int,
     last_logged_at_by_label: dict[str, float],
+    is_alert: bool = False,
 ):
-    if label == FRONTEND_LABELS["normal"]:
+    # Only persist / notify when alert threshold is met (stricter than display)
+    if label == FRONTEND_LABELS["normal"] or not is_alert:
         return
 
     now = time.monotonic()
@@ -162,8 +167,8 @@ async def save_suspicious_event(
     if now - last_logged_at < EVENT_LOG_COOLDOWN_SECONDS:
         return
 
-    add_event(f"{label} on {camera_name}")
-    send_sms_notification(f"{label} на камере {camera_name}")
+    # add_event(f"{label} on {camera_name}")
+    # send_sms_notification(f"{label} на камере {camera_name}")
 
     await create_event(
         db=db,
@@ -174,10 +179,12 @@ async def save_suspicious_event(
                 "ID камеры": camera_id,
                 "Кадр": frame_idx,
                 "Уверенность": round(float(confidence), 4),
+                "is_alert": True,
             },
             ensure_ascii=False,
         ),
     )
+    last_logged_at_by_label[label] = now
 
     last_logged_at_by_label[label] = now
 

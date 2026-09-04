@@ -4,12 +4,12 @@ import type { IActionSetting, ISettings } from "@interfaces/settings.interface";
 
 const defaultSettings: ISettings = {
 	detection: {
-		shoplift: { enabled: true, sensitivity: 0.7 },
-		assault: { enabled: true, sensitivity: 0.8 },
-		fall_floor: { enabled: true, sensitivity: 0.6 },
-		jump: { enabled: false, sensitivity: 0.5 },
-		run: { enabled: true, sensitivity: 0.65 },
-		shoot_gun: { enabled: true, sensitivity: 0.9 },
+		shoplift: { enabled: true, sensitivity: 0.6, alert_sensitivity: 0.45 },
+		assault: { enabled: true, sensitivity: 0.75, alert_sensitivity: 0.55 },
+		fall_floor: { enabled: true, sensitivity: 0.35, alert_sensitivity: 0.2 },
+		jump: { enabled: false, sensitivity: 0.5, alert_sensitivity: 0.35 },
+		run: { enabled: true, sensitivity: 0.55, alert_sensitivity: 0.4 },
+		shoot_gun: { enabled: true, sensitivity: 0.3, alert_sensitivity: 0.15 },
 	},
 	useObjectDetection: true,
 };
@@ -107,6 +107,9 @@ export const DetectionSettings = () => {
 							<strong>{key.replace(/_/g, " ")}</strong>
 						</label>
 
+						<label style={{ fontSize: 12, opacity: 0.8 }}>
+							Чувствительность отображения
+						</label>
 						<input
 							type="range"
 							min="0"
@@ -121,9 +124,38 @@ export const DetectionSettings = () => {
 							}
 							style={{ width: "100%" }}
 						/>
+						<div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
+							Отображение: {action.sensitivity.toFixed(2)} (выше → легче
+							показать метку)
+						</div>
 
+						<label style={{ fontSize: 12, opacity: 0.8 }}>
+							Чувствительность оповещений
+						</label>
+						<input
+							type="range"
+							min="0"
+							max="1"
+							step="0.01"
+							value={
+								action.alert_sensitivity ??
+								Math.max(0, action.sensitivity - 0.2)
+							}
+							disabled={!action.enabled}
+							onChange={(e) =>
+								updateAction(key, {
+									alert_sensitivity: Number(e.target.value),
+								})
+							}
+							style={{ width: "100%" }}
+						/>
 						<div style={{ fontSize: 12, opacity: 0.7 }}>
-							Чувствительность: {action.sensitivity.toFixed(2)}
+							Оповещения:{" "}
+							{(
+								action.alert_sensitivity ??
+								Math.max(0, action.sensitivity - 0.2)
+							).toFixed(2)}{" "}
+							(обычно ниже — строже порог для событий)
 						</div>
 					</div>
 				))}
