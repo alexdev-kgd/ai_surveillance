@@ -12,6 +12,8 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+**/.env
 
 *.mp4
 *.avi

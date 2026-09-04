@@ -1,56 +1,105 @@
-import smtplib
-from email.mime.text import MIMEText
-from datetime import datetime, timedelta
+import hashlib
 import os
-from dotenv import load_dotenv
-from email.message import EmailMessage
+from datetime import datetime
+from typing import Sequence
+
 import requests
+from dotenv import load_dotenv
+
 
 load_dotenv()
 
-SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
-EMAIL_FROM = os.getenv("EMAIL_FROM", "aiSurveillanceSystem@security.com")
-EMAIL_TO = os.getenv("EMAIL_TO", "alexpetrov248@gmail.com")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "qbmq rrzl dcmr iahv")
+RUSENDER_API_URL = os.getenv("RUSENDER_API_URL", "https://api.rusender.ru")
+RUSENDER_API_TOKEN = os.getenv("RUSENDER_API_TOKEN", "")
+RUSENDER_KEY_ID = os.getenv("RUSENDER_KEY_ID", "")
+RUSENDER_TIMEOUT_SECONDS = float(os.getenv("RUSENDER_TIMEOUT_SECONDS", "10"))
 
-NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", 60))  # seconds
+EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "AI Surveillance")
+EMAIL_TO = os.getenv("EMAIL_TO", "")
+
+NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", "60"))
 
 _last_notification_time = datetime.min
-_buffer = []
+_buffer: list[tuple[datetime, str]] = []
 
-def send_email_notification(events):
+
+def _idempotency_key(events: Sequence[tuple[datetime, str]]) -> str:
+    serialized_events = "\n".join(
+        f"{event_time.isoformat()}|{description}"
+        for event_time, description in events
+    )
+    digest = hashlib.sha256(serialized_events.encode("utf-8")).hexdigest()
+    return f"ai-surveillance-{digest}"
+
+
+def _missing_config() -> list[str]:
+    config = {
+        "RUSENDER_API_TOKEN": RUSENDER_API_TOKEN,
+        "RUSENDER_KEY_ID": RUSENDER_KEY_ID,
+        "EMAIL_FROM": EMAIL_FROM,
+        "EMAIL_TO": EMAIL_TO,
+    }
+    return [name for name, value in config.items() if not value]
+
+
+def send_email_notification(events: Sequence[tuple[datetime, str]]) -> bool:
+    """Send a batch of suspicious events through the RuSender Email API."""
     if not events:
-        return
+        return False
 
-    body = "Обнаружены следующие подозрительные действия:\n\n"
-    for t, desc in events:
-        body += f"{t.strftime('%H:%M:%S')} – {desc}\n"
+    missing = _missing_config()
+    if missing:
+        print(f"[MAIL ERROR] Missing configuration: {', '.join(missing)}")
+        return False
 
-    msg = MIMEText(body)
-    msg["Subject"] = "Обнаружена подозрительная активность"
-    msg["From"] = EMAIL_FROM
-    msg["To"] = EMAIL_TO
+    body_lines = ["Обнаружены следующие подозрительные действия:", ""]
+    body_lines.extend(
+        f"{event_time.strftime('%H:%M:%S')} – {description}"
+        for event_time, description in events
+    )
+
+    payload = {
+        "idempotencyKey": _idempotency_key(events),
+        "mail": {
+            "to": {"email": EMAIL_TO},
+            "from": {"email": EMAIL_FROM, "name": EMAIL_FROM_NAME},
+            "subject": "Обнаружена подозрительная активность",
+            "text": "\n".join(body_lines),
+        },
+    }
+    url = (
+        f"{RUSENDER_API_URL.rstrip('/')}"
+        f"/api/v1/external-mails/send/{RUSENDER_KEY_ID}"
+    )
 
     try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(EMAIL_FROM, EMAIL_PASSWORD)
-            server.send_message(msg)
-            print(f"[MAIL] Notification sent to {EMAIL_TO}")
-    except Exception as e:
-        print(f"[MAIL ERROR] {e}")
+        response = requests.post(
+            url,
+            headers={"Authorization": f"Bearer {RUSENDER_API_TOKEN}"},
+            json=payload,
+            timeout=RUSENDER_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        print(f"[MAIL] Notification sent to {EMAIL_TO} via RuSender")
+        return True
+    except requests.RequestException as error:
+        status_code = error.response.status_code if error.response is not None else None
+        status = f" (HTTP {status_code})" if status_code is not None else ""
+        print(f"[MAIL ERROR] RuSender request failed{status}: {error}")
+        return False
 
-def add_event(event_desc: str):
-    """Add a suspicious event and check if it's time to notify."""
-    global _buffer, _last_notification_time
+
+def add_event(event_desc: str) -> None:
+    """Add a suspicious event and send the buffered events once per interval."""
+    global _last_notification_time
 
     now = datetime.now()
     _buffer.append((now, event_desc))
 
-    # Check if enough time has passed since the last email
-    if (now - _last_notification_time).total_seconds() >= NOTIFY_INTERVAL:
-        if _buffer:
-            send_email_notification(_buffer)
-            _buffer.clear()
-        _last_notification_time = now
+    if (now - _last_notification_time).total_seconds() < NOTIFY_INTERVAL:
+        return
+
+    if send_email_notification(_buffer):
+        _buffer.clear()
+    _last_notification_time = now

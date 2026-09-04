@@ -20,6 +20,17 @@ npm run dev
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
+### Email notifications (RuSender)
+
+Copy `backend/.env.example` to `backend/.env` and set these values:
+
+- `RUSENDER_API_TOKEN` — API token with the `external_mail.send` permission
+- `RUSENDER_KEY_ID` — numeric ID of the activated sending key
+- `EMAIL_FROM` — sender on the verified domain linked to that sending key
+- `EMAIL_TO` — notification recipient
+
+The local `.env` file is ignored by Git. Do not commit the API token.
+
 ## Model Training
 
 From `backend` (with venv activated):
