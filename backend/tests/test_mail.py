@@ -16,7 +16,6 @@ class RuSenderMailTests(unittest.TestCase):
         with (
             patch.object(mail, "RUSENDER_API_URL", "https://api.rusender.ru"),
             patch.object(mail, "RUSENDER_API_TOKEN", "secret-token"),
-            patch.object(mail, "RUSENDER_KEY_ID", "42"),
             patch.object(mail, "EMAIL_FROM", "alerts@example.ru"),
             patch.object(mail, "EMAIL_FROM_NAME", "Security"),
             patch.object(mail, "EMAIL_TO", "operator@example.ru"),
@@ -52,7 +51,6 @@ class RuSenderMailTests(unittest.TestCase):
 
         with (
             patch.object(mail, "RUSENDER_API_TOKEN", "secret-token"),
-            patch.object(mail, "RUSENDER_KEY_ID", "42"),
             patch.object(mail, "EMAIL_FROM", "alerts@example.ru"),
             patch.object(mail, "EMAIL_TO", "operator@example.ru"),
         ):
