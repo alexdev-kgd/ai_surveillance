@@ -8,7 +8,6 @@ import ViewListIcon from "@mui/icons-material/ViewList";
 
 import UploadForm from "./tabs/UploadForm";
 import Results from "./tabs/Results";
-import EventList from "./tabs/EventList";
 import EventLogs from "./tabs/EventLogs";
 import { useAuth } from "@context/AuthContext";
 import { Settings } from "./tabs/settings/Settings";
@@ -48,6 +47,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 		<Box sx={{ width: "100%" }}>
 			<Box sx={{ borderBottom: 1, borderColor: "divider" }}>
 				<Tabs
+					className="app-tabs"
 					value={value}
 					onChange={handleChange}
 					aria-label="video tabs"

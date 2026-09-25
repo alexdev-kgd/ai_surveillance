@@ -18,6 +18,7 @@ export const Settings = () => {
 	return (
 		<>
 			<Tabs
+				className="app-tabs"
 				value={tabValue}
 				onChange={handleChange}
 				aria-label="settings tabs"

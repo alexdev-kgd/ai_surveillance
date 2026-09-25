@@ -6,6 +6,12 @@ export interface ILiveDetection {
 }
 
 export interface ILiveCameraFrameMessage {
-	frame: string;
+	frame?: string;
 	detections: ILiveDetection[];
+	frameIndex?: number;
+	sourceWidth?: number;
+	sourceHeight?: number;
+	analysisFps?: number;
+	analysisMs?: number;
+	droppedFrames?: number;
 }

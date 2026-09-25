@@ -155,7 +155,7 @@ export const DetectionSettings = () => {
 								action.alert_sensitivity ??
 								Math.max(0, action.sensitivity - 0.2)
 							).toFixed(2)}{" "}
-							(обычно ниже — строже порог для событий)
+							(обычно ниже - строже порог для событий)
 						</div>
 					</div>
 				))}
