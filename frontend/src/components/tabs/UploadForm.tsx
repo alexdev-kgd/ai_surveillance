@@ -54,8 +54,15 @@ export default function UploadForm({ setResult, setLoading, loading }: Props) {
 					className="annotated-video"
 					src={videoUrl}
 					controls
+					playsInline
+					preload="metadata"
 					style={{ marginTop: 16, maxWidth: "100%", borderRadius: 8 }}
-				/>
+					onError={() => {
+						console.error("Annotated video failed to load:", videoUrl);
+					}}
+				>
+					<source src={videoUrl} type="video/mp4" />
+				</video>
 			)}
 		</>
 	);

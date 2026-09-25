@@ -12,6 +12,8 @@ export default function AddCameraForm({ onAdded }: Props) {
 	const [rtsp, setRtsp] = useState("");
 
 	const submit = async () => {
+		if (name.trim() === "" || rtsp.trim() === "") return;
+
 		const res = await api.post(`${baseURL}/cameras`, {
 			name,
 			rtsp,

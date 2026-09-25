@@ -34,13 +34,13 @@ def require_permission(permission: str):
     ):
         try:
             payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-            email: str = payload.get("sub")
-            if email is None:
+            login: str = payload.get("sub")
+            if login is None:
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         except JWTError:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-        stmt = select(User).where(User.email == email)
+        stmt = select(User).where(User.login == login)
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
 
@@ -60,12 +60,12 @@ def require_permission(permission: str):
 
 async def register_user(
     db: AsyncSession,
-    email: str,
+    login: str,
     password: str,
     role_id: int = 1,
 ) -> User:
     user = User(
-        email=email,
+        login=login,
         password_hash=hash_password(password),
         role_id=role_id,
     )
@@ -79,10 +79,10 @@ async def register_user(
 
 async def authenticate_user(
     db: AsyncSession,
-    email: str,
+    login: str,
     password: str,
 ) -> str:
-    stmt = select(User).options(selectinload(User.role)).where(User.email == email)
+    stmt = select(User).options(selectinload(User.role)).where(User.login == login)
     result = await db.execute(stmt)
     user = result.scalar_one_or_none()
 
@@ -94,7 +94,7 @@ async def authenticate_user(
 
     token = create_access_token(
         {
-            "sub": user.email,
+            "sub": user.login,
             "role": user.role.name,
         }
     )
@@ -107,9 +107,9 @@ async def get_current_user(
 ):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-        email: str = payload.get("sub")
+        login: str = payload.get("sub")
 
-        if not email:
+        if not login:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
     # ExpiredSignatureError handling
@@ -119,7 +119,7 @@ async def get_current_user(
             detail="Token expired or invalid",
         )
 
-    stmt = select(User).where(User.email == email).options(
+    stmt = select(User).where(User.login == login).options(
         selectinload(User.role)
         .selectinload(Role.permissions)
     )

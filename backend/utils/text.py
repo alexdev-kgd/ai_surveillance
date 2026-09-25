@@ -9,16 +9,16 @@ def put_text_ru(
     frame,
     text,
     position=TEXT_DEFAULT_POSITION,
-    font_size=24,
-    color=(255, 0, 0),
-    font_scale=0.030, # % of frame height
+    font_size=12,
+    color=(0, 0, 255),
+    font_scale=0.01, # % of frame height
 ):
     h, w = frame.shape[:2]
 
     img_pil = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
     draw = ImageDraw.Draw(img_pil)
 
-    font_size = max(14, int(h * font_scale))
+    font_size = max(10, int(h * font_scale))
     font_path = os.path.join(os.path.dirname(__file__), "..","fonts", "Roboto.ttf")
     font_path = os.path.abspath(font_path)
 

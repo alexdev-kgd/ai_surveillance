@@ -4,4 +4,5 @@ export const PERMISSION_NAMES: Record<string, string> = {
 	"users:read": "Чтение пользователей",
 	"users:write": "Изменение пользователей",
 	"streams:read": "Просмотр потоков",
+	"audit:read": "Просмотр аудита",
 };

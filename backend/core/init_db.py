@@ -66,20 +66,20 @@ async def init_data():
             return pwd_context.hash(password)
 
         # admin
-        res = await session.execute(select(User).where(User.email == "admin@test.com"))
+        res = await session.execute(select(User).where(User.login == "admin"))
         if not res.scalar_one_or_none():
             user_admin = User(
-                email="admin@test.com",
+                login="admin",
                 password_hash=hash_password("1234"),
                 role=admin_role
             )
             session.add(user_admin)
 
         # operator
-        res = await session.execute(select(User).where(User.email == "operator@test.com"))
+        res = await session.execute(select(User).where(User.login == "operator"))
         if not res.scalar_one_or_none():
             user_operator = User(
-                email="operator@test.com",
+                login="operator",
                 password_hash=hash_password("1234"),
                 role=operator_role
             )

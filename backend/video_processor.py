@@ -32,7 +32,7 @@ def get_mjpeg_generator():
             with _frame_lock:
                 frame = _latest_frame_jpg
             if frame is None:
-                # если еще нет кадра — подождать
+                # если еще нет кадра - подождать
                 time.sleep(0.05)
                 continue
             yield (b"--frame\r\n"

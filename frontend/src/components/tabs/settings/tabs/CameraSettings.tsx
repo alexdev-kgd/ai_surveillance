@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
+import { TextField } from "@mui/material";
 import { api, baseURL } from "@api/axios";
 import type { ICamera } from "@interfaces/camera.interface";
 import { useUsbCameraSync } from "@hooks/useUsbCameraSync";
@@ -13,6 +15,11 @@ export const CameraSettings = () => {
 	const [cameras, setCameras] = useState<ICamera[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [activeStreams, setActiveStreams] = useState<StreamMap>({});
+	const [editingCameraId, setEditingCameraId] = useState<string | null>(null);
+	const [editName, setEditName] = useState("");
+	const [editRtsp, setEditRtsp] = useState("");
+	const [saving, setSaving] = useState(false);
+	const [editError, setEditError] = useState("");
 	const activeStreamsRef = useRef<StreamMap>({});
 
 	const fetchCameras = useCallback(async () => {
@@ -120,6 +127,44 @@ export const CameraSettings = () => {
 		setCameras((prev) => prev.filter((camera) => camera.id !== id));
 	};
 
+	const startEditing = (camera: ICamera) => {
+		setEditingCameraId(camera.id);
+		setEditName(camera.name);
+		setEditRtsp(camera.rtsp);
+		setEditError("");
+	};
+
+	const saveCamera = async (
+		event: FormEvent<HTMLFormElement>,
+		camera: ICamera
+	) => {
+		event.preventDefault();
+		const name = editName.trim();
+		const rtsp = editRtsp.trim();
+		if (!name || (camera.type === "IP" && !rtsp)) {
+			setEditError("Заполните название и URL камеры.");
+			return;
+		}
+
+		setSaving(true);
+		setEditError("");
+		try {
+			const res = await api.patch<ICamera>(`${baseURL}/cameras/${camera.id}`, {
+				name,
+				...(camera.type === "IP" ? { rtsp } : {}),
+			});
+			setCameras((prev) =>
+				prev.map((item) => (item.id === camera.id ? res.data : item))
+			);
+			setEditingCameraId(null);
+		} catch (error) {
+			console.error(error);
+			setEditError("Не удалось сохранить изменения камеры.");
+		} finally {
+			setSaving(false);
+		}
+	};
+
 	if (loading) return <div>Загрузка камер...</div>;
 
 	return (
@@ -139,7 +184,6 @@ export const CameraSettings = () => {
 					<div
 						style={{
 							opacity: camera.enabled ? 1 : 0.5,
-							pointerEvents: camera.enabled ? "auto" : "none",
 						}}
 					>
 						<strong>{camera.name}</strong>
@@ -152,20 +196,68 @@ export const CameraSettings = () => {
 								: camera.rtsp}
 						</div>
 					</div>
+					{editingCameraId === camera.id && (
+						<form
+							onSubmit={(event) => saveCamera(event, camera)}
+							style={{ display: "grid", gap: 12, marginTop: 12 }}
+						>
+							<TextField
+								label="Название камеры"
+								value={editName}
+								onChange={(event) => setEditName(event.target.value)}
+								size="small"
+								fullWidth
+								required
+							/>
+							{camera.type === "IP" && (
+								<TextField
+									label="RTSP URL"
+									value={editRtsp}
+									onChange={(event) => setEditRtsp(event.target.value)}
+									size="small"
+									fullWidth
+									required
+								/>
+							)}
+							{editError && <div role="alert">{editError}</div>}
+							<div>
+								<button type="submit" disabled={saving}>
+									Сохранить
+								</button>
+								<button
+									type="button"
+									disabled={saving}
+									onClick={() => setEditingCameraId(null)}
+									style={{ marginLeft: 8 }}
+								>
+									Отмена
+								</button>
+							</div>
+						</form>
+					)}
 
-					<button
-						style={{ marginTop: 6 }}
-						onClick={() => toggleCamera(camera.id)}
-					>
-						{camera.enabled ? "Выключить" : "Включить"}
-					</button>
-
-					<button
-						style={{ marginTop: 6, marginLeft: 8 }}
-						onClick={() => removeCamera(camera.id)}
-					>
-						Удалить
-					</button>
+					{editingCameraId !== camera.id && (
+						<div>
+							<button
+							style={{ marginTop: 6 }}
+								onClick={() => toggleCamera(camera.id)}
+							>
+								{camera.enabled ? "Выключить" : "Включить"}
+							</button>
+							<button
+							style={{ marginTop: 6, marginLeft: 8 }}
+								onClick={() => startEditing(camera)}
+							>
+								Редактировать
+						</button>
+							<button
+							style={{ marginTop: 6, marginLeft: 8 }}
+								onClick={() => removeCamera(camera.id)}
+							>
+								Удалить
+							</button>
+						</div>
+					)}
 				</div>
 			))}
 

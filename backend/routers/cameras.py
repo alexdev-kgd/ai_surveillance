@@ -11,7 +11,7 @@ from services.auth import get_current_user
 from services.audit_log import log_action
 from models.camera import Camera
 from models.user import User
-from schemas.camera import CameraCreate, CameraResponse, UsbCameraSyncRequest
+from schemas.camera import CameraCreate, CameraResponse, CameraUpdate, UsbCameraSyncRequest
 
 router = APIRouter(prefix="/cameras", tags=["Cameras"])
 
@@ -90,10 +90,10 @@ async def sync_usb_cameras(
     result = await db.execute(select(Camera).where(Camera.type == "USB"))
     existing_usb = {camera.id: camera for camera in result.scalars().all()}
 
+    # Existing names can be user edits, so only new cameras get device labels.
     for device_id, label in normalized_devices.items():
         camera_id = f"usb-{device_id}"
-        camera = existing_usb.get(camera_id)
-        if camera is None:
+        if camera_id not in existing_usb:
             db.add(
                 Camera(
                     id=camera_id,
@@ -103,10 +103,6 @@ async def sync_usb_cameras(
                     enabled=False,
                 )
             )
-            continue
-
-        if camera.name != label:
-            camera.name = label
 
     for camera_id, camera in existing_usb.items():
         if camera_id in expected_ids:
@@ -128,6 +124,58 @@ async def sync_usb_cameras(
 
     refreshed = await db.execute(select(Camera))
     return [to_camera_response(camera) for camera in refreshed.scalars().all()]
+
+@router.patch("/{camera_id}", response_model=CameraResponse)
+async def update_camera(
+    camera_id: str,
+    payload: CameraUpdate,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    result = await db.execute(select(Camera).where(Camera.id == camera_id))
+    camera = result.scalar_one_or_none()
+    if camera is None:
+        raise HTTPException(404, "Camera not found")
+
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(422, "Camera name cannot be empty")
+
+    is_ip_camera = str(camera.type).upper() == "IP"
+    if not is_ip_camera and payload.rtsp is not None:
+        raise HTTPException(400, "USB camera URL cannot be changed")
+
+    rtsp = camera.rtsp
+    if is_ip_camera:
+        rtsp = (payload.rtsp if payload.rtsp is not None else camera.rtsp).strip()
+        if not rtsp:
+            raise HTTPException(422, "Camera URL cannot be empty")
+
+    url_changed = is_ip_camera and rtsp != camera.rtsp
+    camera.name = name
+    camera.rtsp = rtsp
+    await db.commit()
+
+    if is_ip_camera:
+        reader = CAMERA_READERS.get(camera_id)
+        if url_changed:
+            if reader:
+                reader.stop()
+            CAMERA_READERS.pop(camera_id, None)
+            if camera.enabled:
+                replacement = RTSPCameraReader(rtsp, name)
+                CAMERA_READERS[camera_id] = replacement
+                replacement.start()
+        elif reader:
+            reader.name = name
+
+    await log_action(
+        db,
+        user.id,
+        AuditAction.CAMERA_UPDATED,
+        details={"message": f'Камера "{name}" обновлена'},
+    )
+    return to_camera_response(camera)
 
 @router.patch("/{camera_id}/toggle")
 async def toggle_camera(
@@ -151,7 +199,10 @@ async def toggle_camera(
     is_ip_camera = str(camera.type).upper() == "IP"
 
     if camera.enabled:
-        if is_ip_camera and reader:
+        if is_ip_camera:
+            if reader is None:
+                reader = RTSPCameraReader(camera.rtsp, camera.name)
+                CAMERA_READERS[camera_id] = reader
             reader.start()
 
         await log_action(

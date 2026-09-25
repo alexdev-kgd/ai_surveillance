@@ -1,23 +1,22 @@
 import json
 import base64
-import io
 import time
+from collections import deque
 import numpy as np
 import cv2
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from PIL import Image
 from core.config import FRONTEND_LABELS
-from core.cameras import CAMERAS
 from services.event import create_event
+from services.mail import add_event
+from services.sms import send_sms_notification
 from services.settings import get_settings
+from services.camera import get_enabled_camera_by_id
 from services.anomaly_predictor import (
     analyze_with_yolo,
     analyze_scene,
 )
 from core.db import get_db
-from models.camera import Camera
-from sqlalchemy import select
 from core.camera_runtime import CAMERA_READERS
 from services.rtsp_reader import RTSPCameraReader
 
@@ -25,26 +24,140 @@ router = APIRouter(tags=["Video Stream"])
 
 EVENT_LOG_COOLDOWN_SECONDS = 2.0
 
+
+def decode_websocket_frame(message: dict) -> np.ndarray | None:
+    """Decode both the new binary protocol and legacy base64 text frames."""
+    payload = message.get("bytes")
+    if payload is None:
+        text = message.get("text")
+        if text is None:
+            return None
+        try:
+            payload = base64.b64decode(text, validate=True)
+        except (ValueError, TypeError):
+            return None
+
+    encoded = np.frombuffer(payload, dtype=np.uint8)
+    return cv2.imdecode(encoded, cv2.IMREAD_COLOR)
+
+
+async def stream_usb_camera(
+    ws: WebSocket,
+    db,
+    camera_id: str,
+    camera_name: str,
+    use_yolo: bool,
+    last_logged_at_by_label: dict[str, float],
+) -> None:
+    """
+    Keep camera transport independent from inference.
+
+    The receiver continuously replaces the pending frame, so slow inference never
+    creates an ever-growing queue of stale camera frames. The browser renders the
+    local MediaStream at camera speed and receives only detection overlays here.
+    """
+    latest_frame: np.ndarray | None = None
+    latest_frame_idx = 0
+    received_frames = 0
+    processed_frames = 0
+    new_frame = asyncio.Event()
+
+    async def receive_frames() -> None:
+        nonlocal latest_frame, latest_frame_idx, received_frames
+
+        while True:
+            message = await ws.receive()
+            if message.get("type") == "websocket.disconnect":
+                raise WebSocketDisconnect(message.get("code", 1000))
+
+            frame = decode_websocket_frame(message)
+            if frame is None:
+                continue
+
+            received_frames += 1
+            latest_frame_idx = received_frames
+            latest_frame = frame
+            new_frame.set()
+
+    async def analyze_latest_frames() -> None:
+        nonlocal processed_frames
+        last_processed_idx = 0
+        completion_times: deque[float] = deque(maxlen=30)
+
+        while True:
+            await new_frame.wait()
+            new_frame.clear()
+
+            frame = latest_frame
+            frame_idx = latest_frame_idx
+            if frame is None or frame_idx == last_processed_idx:
+                continue
+
+            last_processed_idx = frame_idx
+            started_at = time.perf_counter()
+            annotated, detections, label, confidence, is_alert = await asyncio.to_thread(
+                process_frame,
+                frame,
+                frame_idx,
+                use_yolo,
+                False,
+            )
+            del annotated
+            processed_frames += 1
+
+            await save_suspicious_event(
+                db=db,
+                camera_id=camera_id,
+                camera_name=camera_name,
+                label=label,
+                confidence=confidence,
+                frame_idx=frame_idx,
+                last_logged_at_by_label=last_logged_at_by_label,
+                is_alert=is_alert,
+            )
+
+            completed_at = time.perf_counter()
+            completion_times.append(completed_at)
+            analysis_fps = 0.0
+            if len(completion_times) > 1:
+                analysis_fps = (len(completion_times) - 1) / max(
+                    completion_times[-1] - completion_times[0],
+                    1e-6,
+                )
+
+            await ws.send_json(
+                {
+                    "detections": detections,
+                    "frameIndex": frame_idx,
+                    "sourceWidth": int(frame.shape[1]),
+                    "sourceHeight": int(frame.shape[0]),
+                    "analysisFps": analysis_fps,
+                    "analysisMs": (completed_at - started_at) * 1000.0,
+                    "droppedFrames": max(0, received_frames - processed_frames),
+                }
+            )
+
+    receiver = asyncio.create_task(receive_frames())
+    analyzer = asyncio.create_task(analyze_latest_frames())
+    tasks = {receiver, analyzer}
+
+    try:
+        done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+        for task in done:
+            exception = task.exception()
+            if exception is not None:
+                raise exception
+        for task in pending:
+            task.cancel()
+    finally:
+        for task in tasks:
+            task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+
 @router.websocket("/ws/video/{camera_id}")
 async def websocket_video(ws: WebSocket, camera_id: str):
-    camera = CAMERAS.get(camera_id)
+    camera = await get_enabled_camera_by_id(camera_id)
     db = None
-
-    if camera is None:
-        async for session in get_db():
-            db = session
-            result = await db.execute(
-                select(Camera).where(Camera.id == camera_id, Camera.enabled == True)
-            )
-            camera_row = result.scalar_one_or_none()
-            break
-
-        if camera_row:
-            camera = {
-                "type": camera_row.type,
-                "name": camera_row.name,
-                "rtsp": camera_row.rtsp,
-            }
 
     if camera is None:
         await ws.close(code=1008)
@@ -66,32 +179,14 @@ async def websocket_video(ws: WebSocket, camera_id: str):
 
     try:
         if str(camera["type"]).upper() in ("WEBCAM", "USB"):
-            while True:
-                data = await ws.receive_text()
-
-                img_bytes = base64.b64decode(data)
-                img = Image.open(io.BytesIO(img_bytes))
-
-                frame = np.array(img)
-                frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-
-                frame_idx += 1
-
-                annotated, detections, label, confidence = process_frame(
-                    frame, frame_idx, use_yolo
-                )
-
-                await save_suspicious_event(
-                    db=db,
-                    camera_id=camera_id,
-                    camera_name=camera_name,
-                    label=label,
-                    confidence=confidence,
-                    frame_idx=frame_idx,
-                    last_logged_at_by_label=last_logged_at_by_label,
-                )
-
-                await send_frame(ws, annotated, detections)
+            await stream_usb_camera(
+                ws=ws,
+                db=db,
+                camera_id=camera_id,
+                camera_name=camera_name,
+                use_yolo=use_yolo,
+                last_logged_at_by_label=last_logged_at_by_label,
+            )
 
         else:
             # ==========================
@@ -121,8 +216,8 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     continue
 
                 frame_idx += 1
-                annotated, detections, label, confidence = process_frame(
-                    frame, frame_idx, use_yolo
+                annotated, detections, label, confidence, is_alert = process_frame(
+                    frame, frame_idx, use_yolo, annotate=False
                 )
 
                 await save_suspicious_event(
@@ -133,6 +228,7 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     confidence=confidence,
                     frame_idx=frame_idx,
                     last_logged_at_by_label=last_logged_at_by_label,
+                    is_alert=is_alert,
                 )
 
                 await send_frame(ws, annotated, detections)
@@ -145,13 +241,13 @@ async def websocket_video(ws: WebSocket, camera_id: str):
             await db.close()
 
 
-def process_frame(frame, frame_idx, use_yolo):
-    annotated_frame = frame.copy()
+def process_frame(frame, frame_idx, use_yolo, annotate: bool = True):
+    output_frame = frame.copy() if annotate else frame
 
     result = (
-        analyze_with_yolo(annotated_frame, frame_idx)
+        analyze_with_yolo(output_frame, frame_idx, annotate=annotate)
         if use_yolo
-        else analyze_scene(annotated_frame, frame_idx)
+        else analyze_scene(output_frame, frame_idx, annotate=annotate)
     )
 
     return (
@@ -159,6 +255,7 @@ def process_frame(frame, frame_idx, use_yolo):
         result["detections"],
         result["label"],
         result["confidence"],
+        result.get("is_alert", False),
     )
 
 async def save_suspicious_event(
@@ -169,14 +266,19 @@ async def save_suspicious_event(
     confidence: float,
     frame_idx: int,
     last_logged_at_by_label: dict[str, float],
+    is_alert: bool = False,
 ):
-    if label == FRONTEND_LABELS["normal"]:
+    # Only persist / notify when alert threshold is met (stricter than display)
+    if label == FRONTEND_LABELS["normal"] or not is_alert:
         return
 
     now = time.monotonic()
     last_logged_at = last_logged_at_by_label.get(label, 0.0)
     if now - last_logged_at < EVENT_LOG_COOLDOWN_SECONDS:
         return
+
+    add_event(f"{label} on {camera_name}")
+    send_sms_notification(f"{label} на камере {camera_name}")
 
     await create_event(
         db=db,
@@ -187,10 +289,12 @@ async def save_suspicious_event(
                 "ID камеры": camera_id,
                 "Кадр": frame_idx,
                 "Уверенность": round(float(confidence), 4),
+                "is_alert": True,
             },
             ensure_ascii=False,
         ),
     )
+    last_logged_at_by_label[label] = now
 
     last_logged_at_by_label[label] = now
 

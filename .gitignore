@@ -12,12 +12,16 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+**/.env
 
 *.typed
 *.pyc
 *.mp4
+*.avi
+*.sfk
 *.db
-venv
+*.npy
 
 # Editor directories and files
 .vscode/*

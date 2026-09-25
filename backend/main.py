@@ -3,12 +3,13 @@ from fastapi import FastAPI
 app = FastAPI(title="AI Surveillance System")
 
 from fastapi.middleware.cors import CORSMiddleware
+from core.config import CORS_ORIGINS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 # Register routers
@@ -63,8 +64,6 @@ async def init_rtsp_cameras_from_db():
         for cam in cameras:
             if cam.id not in CAMERA_READERS:
                 reader = RTSPCameraReader(cam.rtsp, cam.name)
-                print(cam.name)
-                print(cam.rtsp)
                 reader.start()
                 CAMERA_READERS[cam.id] = reader
         break  # берем только один раз сессии

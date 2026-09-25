@@ -2,6 +2,80 @@
 @tailwind components;
 @tailwind utilities;
 
+.app-tabs .MuiTabs-indicator {
+	display: none;
+}
+
+.app-tabs .MuiTab-root.Mui-selected {
+	position: relative;
+}
+
+.app-tabs .MuiTab-root.Mui-selected::after {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	height: 2px;
+	background-color: #1976d2;
+}
+
+@media (prefers-color-scheme: dark) {
+	.app-tabs .MuiTab-root,
+	.app-tabs .MuiTab-root.Mui-selected {
+		color: #fff;
+	}
+
+	body .MuiInputBase-root,
+	body .MuiInputBase-input,
+	body .MuiSelect-select,
+	body .MuiInputLabel-root,
+	body .MuiInputLabel-root.Mui-focused,
+	body .MuiInputLabel-root.Mui-error,
+	body .MuiInputLabel-root.Mui-disabled,
+	body .MuiInputBase-root .MuiSvgIcon-root,
+	body .MuiInputBase-root .MuiIconButton-root,
+	body .MuiTablePagination-selectIcon,
+	body input:not([type="checkbox"]):not([type="range"]):not(.MuiInputBase-input),
+	body textarea:not(.MuiInputBase-input),
+	body select:not(.MuiSelect-select) {
+		color: #fff;
+	}
+
+	body .MuiInputBase-input::placeholder,
+	body input:not(.MuiInputBase-input)::placeholder,
+	body textarea::placeholder {
+		color: #fff;
+		opacity: 1;
+	}
+
+	body .MuiOutlinedInput-root .MuiOutlinedInput-notchedOutline,
+	body .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline,
+	body .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline,
+	body .MuiOutlinedInput-root.Mui-error .MuiOutlinedInput-notchedOutline,
+	body .MuiOutlinedInput-root.Mui-disabled .MuiOutlinedInput-notchedOutline,
+	body input:not(.MuiInputBase-input):not([type="checkbox"]):not([type="range"]),
+	body textarea:not(.MuiInputBase-input),
+	body select:not(.MuiSelect-select) {
+		border-color: #fff;
+	}
+
+	body thead th {
+		color: #213547;
+	}
+
+	body .MuiTablePagination-root,
+	body .MuiTablePagination-root .MuiTablePagination-toolbar,
+	body .MuiTablePagination-root .MuiTablePagination-selectLabel,
+	body .MuiTablePagination-root .MuiTablePagination-displayedRows,
+	body .MuiTablePagination-root .MuiTablePagination-select,
+	body .MuiTablePagination-root .MuiTablePagination-selectIcon,
+	body .MuiTablePagination-root .MuiIconButton-root,
+	body .MuiTablePagination-root .MuiIconButton-root .MuiSvgIcon-root {
+		color: #fff;
+	}
+}
+
 :root {
 	font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
 	line-height: 1.5;
