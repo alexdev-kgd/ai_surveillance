@@ -1,3 +1,37 @@
+import os
+from pathlib import Path
+from urllib.parse import urlsplit
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
+
+def load_secret_key():
+    key = os.environ.get("SECRET_KEY", "")
+    if len(key.encode("utf-8")) < 32 or key == "AIS_AI_SECRET_KEY":
+        raise RuntimeError("Set SECRET_KEY to a randomly generated secret of at least 32 bytes")
+    return key
+
+
+def load_cors_origins():
+    origins = [s.strip() for s in os.environ.get("CORS_ORIGINS", "").split(",") if s.strip()]
+    for origin in origins:
+        parsed = urlsplit(origin)
+        if (parsed.scheme not in {"http", "https"} or not parsed.hostname
+                or "*" in origin or parsed.username is not None
+                or parsed.password is not None or parsed.path
+                or parsed.query or parsed.fragment):
+            raise RuntimeError("CORS_ORIGINS must contain exact HTTP(S) origins without paths or wildcards")
+        try:
+            parsed.port
+        except ValueError as exc:
+            raise RuntimeError("Invalid port in CORS_ORIGINS") from exc
+    return origins
+
+
+CORS_ORIGINS = load_cors_origins()
+
 # Aligned with training / serve (`utils.video_preprocess.CLIP_LEN` / `SAMPLE_STRIDE`)
 STRIDE = 2
 
@@ -21,7 +55,7 @@ ACTIONS_TO_DETECT_CLASS_NAMES = [
     "shoplift",
 ]
 
-SECRET_KEY = "AIS_AI_SECRET_KEY"
+SECRET_KEY = load_secret_key()
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 

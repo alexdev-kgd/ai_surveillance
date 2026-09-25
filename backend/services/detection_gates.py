@@ -128,7 +128,7 @@ class WeaponThreatGate:
     """
     Confirm shoot_gun-like threat via:
 
-    1) YOLO weapon-proxy classes (knife/scissors — no firearm in COCO)
+    1) YOLO weapon-proxy classes (knife/scissors - no firearm in COCO)
     2) Pose: extended arm(s) consistent with aiming / pointing a weapon
 
     If neither signal supports a weapon threat, veto shoot_gun.

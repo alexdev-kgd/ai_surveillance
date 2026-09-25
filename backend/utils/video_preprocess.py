@@ -145,7 +145,7 @@ def compute_optical_flow_clip(
         normalize: clip to [-1, 1] by max abs (same as precompute_flow)
 
     Returns:
-        float32 array (T, H, W, 2) — last flow repeated to match T.
+        float32 array (T, H, W, 2) - last flow repeated to match T.
     """
     grays = []
     for f in rgb_frames:

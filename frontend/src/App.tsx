@@ -20,7 +20,7 @@ export default function App() {
 				const data: IEvent = JSON.parse(event.data);
 				setEvents((prev) => [data, ...prev].slice(0, 50));
 			} catch (e) {
-				// сервер может присылать текст — игнорируем
+				// сервер может присылать текст - игнорируем
 			}
 		};
 		wsRef.current = ws;

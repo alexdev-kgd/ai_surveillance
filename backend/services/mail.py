@@ -10,13 +10,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 RUSENDER_API_URL = os.getenv("RUSENDER_API_URL", "https://api.rusender.ru")
-RUSENDER_API_TOKEN = os.getenv("RUSENDER_API_TOKEN", "")
-RUSENDER_KEY_ID = os.getenv("RUSENDER_KEY_ID", "")
+RUSENDER_API_TOKEN = os.getenv("RUSENDER_API_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZFVzZXIiOjIzMjc2LCJpZEV4dGVybmFsTWFpbEFwaUtleSI6NDE2OCwiaWF0IjoxNzc2OTY4Mzc5fQ.mWjJeoL2SXfOD-BvOJlDed-ezRhTNlkhfuFAI8_pABk")
 RUSENDER_TIMEOUT_SECONDS = float(os.getenv("RUSENDER_TIMEOUT_SECONDS", "10"))
 
-EMAIL_FROM = os.getenv("EMAIL_FROM", "")
+EMAIL_FROM = os.getenv("EMAIL_FROM", "<noreply>@ai-surveillance")
 EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "AI Surveillance")
-EMAIL_TO = os.getenv("EMAIL_TO", "")
+EMAIL_TO = os.getenv("EMAIL_TO", "alexpetrov248@gmail.com")
 
 NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", "60"))
 
@@ -36,7 +35,6 @@ def _idempotency_key(events: Sequence[tuple[datetime, str]]) -> str:
 def _missing_config() -> list[str]:
     config = {
         "RUSENDER_API_TOKEN": RUSENDER_API_TOKEN,
-        "RUSENDER_KEY_ID": RUSENDER_KEY_ID,
         "EMAIL_FROM": EMAIL_FROM,
         "EMAIL_TO": EMAIL_TO,
     }
@@ -70,7 +68,7 @@ def send_email_notification(events: Sequence[tuple[datetime, str]]) -> bool:
     }
     url = (
         f"{RUSENDER_API_URL.rstrip('/')}"
-        f"/api/v1/external-mails/send/{RUSENDER_KEY_ID}"
+        f"/api/v1/external-mails/send"
     )
 
     try:

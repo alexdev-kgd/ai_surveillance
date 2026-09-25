@@ -32,7 +32,10 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 BACKEND_DIR = SCRIPT_DIR.parent
 DEFAULT_INPUT_DIR = BACKEND_DIR / "dataset"
 DEFAULT_OUTPUT_DIR = BACKEND_DIR / "dataset-cropped"
-DEFAULT_MODEL = BACKEND_DIR / "yolov8n.onnx"
+# The PyTorch checkpoint supports arbitrary --image-size values and does not
+# require the optional ONNX Runtime dependency. An ONNX model can still be
+# supplied explicitly with --model.
+DEFAULT_MODEL = BACKEND_DIR / "yolov8n.pt"
 
 VIDEO_EXTENSIONS = {".mp4", ".avi", ".mov", ".mkv", ".m4v", ".webm"}
 PERSON_CLASS_ID = 0  # COCO class id used by the standard YOLO models
@@ -429,6 +432,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     # Importing Ultralytics is intentionally delayed so `--help` remains fast.
+    # Dataset preprocessing should never install packages implicitly.
+    os.environ.setdefault("YOLO_AUTOINSTALL", "false")
     from ultralytics import YOLO
 
     print(f"Loading YOLO model: {args.model}")

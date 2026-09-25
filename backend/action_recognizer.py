@@ -12,7 +12,7 @@ class SimpleActionClassifier:
         self.fall_angle_thresh = 50  # градусы
         self.movement_speed_thresh = 0.02  # norm coords/frame
 
-        # для вычисления скорости — хранит предыдущие когорты ключевых точек
+        # для вычисления скорости - хранит предыдущие когорты ключевых точек
         self._prev_centroid = None
 
     def compute_centroid(self, landmarks):

@@ -21,6 +21,7 @@ from utils.device import device
 from utils.text import TEXT_DEFAULT_POSITION, put_text_ru
 from utils.video_preprocess import (
     CLIP_LEN,
+    FLOW_PARAMS,
     SAMPLE_STRIDE,
     bgr_to_rgb_uint8,
     prepare_model_inputs,
@@ -29,6 +30,7 @@ from utils.video_preprocess import (
 # Keep buffer of RGB uint8 frames (not pre-normalized) so flow can be computed.
 # Stride is applied when appending so train/serve sampling match.
 _rgb_buffer: List[np.ndarray] = []
+_flow_buffer: List[np.ndarray] = []
 _raw_frame_counter = 0
 
 current_label = FRONTEND_LABELS["normal"]
@@ -118,7 +120,7 @@ def anomaly_model_predict(
     `frame_bgr` is used for the model clip (may be a person crop).
     `gate_frame_bgr` is used for pose/weapon gates (defaults to frame_bgr).
     """
-    global _rgb_buffer, _raw_frame_counter
+    global _rgb_buffer, _flow_buffer, _raw_frame_counter
 
     gate_frame = gate_frame_bgr if gate_frame_bgr is not None else frame_bgr
 
@@ -130,12 +132,26 @@ def anomaly_model_predict(
         return FRONTEND_LABELS["normal"], 0.0, False
 
     rgb = bgr_to_rgb_uint8(frame_bgr)
+
+    # Compute only the new transition. Recomputing all 15 overlapping
+    # Farneback fields on every inference was one of the main realtime costs.
+    if _rgb_buffer:
+        previous_gray = cv2.cvtColor(_rgb_buffer[-1], cv2.COLOR_RGB2GRAY)
+        current_gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
+        flow = cv2.calcOpticalFlowFarneback(
+            previous_gray,
+            current_gray,
+            None,
+            **FLOW_PARAMS,
+        )
+        _flow_buffer.append(flow.astype(np.float32))
     _rgb_buffer.append(rgb)
 
     # Keep a bit of history; model needs CLIP_LEN strided frames
     max_buf = CLIP_LEN * 2
     if len(_rgb_buffer) > max_buf:
         _rgb_buffer = _rgb_buffer[-max_buf:]
+        _flow_buffer = _flow_buffer[-(max_buf - 1):]
 
     # print(f"len(_rgb_buffer)={len(_rgb_buffer)}, CLIP_LEN={CLIP_LEN}")
     # print(f"{len(_rgb_buffer) < CLIP_LEN} is len(_rgb_buffer) < CLIP_LEN")
@@ -144,12 +160,24 @@ def anomaly_model_predict(
 
     clip_frames = _rgb_buffer[-CLIP_LEN:]
 
-    # Real optical flow (same Farneback params as training precompute)
-    # print(f"anomaly_model_predict: computing flow for {len(clip_frames)} frames") 
-    rgb_tensor, flow_tensor = prepare_model_inputs(clip_frames, flow_array=None, device=device)
+    # Preserve training-time clip normalization while reusing cached raw flow.
+    clip_flow = np.stack(_flow_buffer[-(CLIP_LEN - 1):], axis=0)
+    max_flow = np.abs(clip_flow).max()
+    if max_flow > 0:
+        clip_flow = np.clip(clip_flow / max_flow, -1.0, 1.0)
+    clip_flow = np.concatenate([clip_flow, clip_flow[-1][None, ...]], axis=0)
+    rgb_tensor, flow_tensor = prepare_model_inputs(
+        clip_frames,
+        flow_array=clip_flow,
+        device=device,
+    )
 
-    with torch.no_grad():
-        logits = video_model(rgb_tensor, flow_tensor)
+    with torch.inference_mode():
+        if device.type == "cuda":
+            with torch.autocast(device_type="cuda", dtype=torch.float16):
+                logits = video_model(rgb_tensor, flow_tensor)
+        else:
+            logits = video_model(rgb_tensor, flow_tensor)
         probs = torch.softmax(logits, dim=-1)[0]
 
     topk = torch.topk(probs, min(3, probs.numel()))
@@ -213,7 +241,11 @@ def get_persistent_prediction(
     return current_label, current_confidence, current_is_alert
 
 
-def analyze_with_yolo(frame: np.ndarray, total_frames: int) -> Dict[str, Any]:
+def analyze_with_yolo(
+    frame: np.ndarray,
+    total_frames: int,
+    annotate: bool = True,
+) -> Dict[str, Any]:
     detections: List[dict] = []
     best_label = FRONTEND_LABELS["normal"]
     best_confidence = 0.0
@@ -248,16 +280,17 @@ def analyze_with_yolo(frame: np.ndarray, total_frames: int) -> Dict[str, Any]:
             best_confidence = confidence
             best_is_alert = is_alert
 
-        frame, is_normal = draw_action_label(
-            frame,
-            label,
-            confidence,
-            position=(x1 + 5, y1 - 30),
-            is_alert=is_alert,
-        )
+        if annotate:
+            frame, is_normal = draw_action_label(
+                frame,
+                label,
+                confidence,
+                position=(x1 + 5, y1 - 30),
+                is_alert=is_alert,
+            )
 
-        color = (0, 255, 0) if is_normal else ((0, 0, 255) if is_alert else (0, 165, 255))
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+            color = (0, 255, 0) if is_normal else ((0, 0, 255) if is_alert else (0, 165, 255))
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
         detections.append(
             {
@@ -279,7 +312,11 @@ def analyze_with_yolo(frame: np.ndarray, total_frames: int) -> Dict[str, Any]:
     }
 
 
-def analyze_scene(frame: np.ndarray, total_frames: int) -> Dict[str, Any]:
+def analyze_scene(
+    frame: np.ndarray,
+    total_frames: int,
+    annotate: bool = True,
+) -> Dict[str, Any]:
     raw_label, raw_confidence, raw_is_alert = anomaly_model_predict(
         frame,
         gate_frame_bgr=frame,
@@ -293,7 +330,8 @@ def analyze_scene(frame: np.ndarray, total_frames: int) -> Dict[str, Any]:
         raw_label, raw_confidence, raw_is_alert
     )
 
-    frame, _ = draw_action_label(frame, label, confidence, is_alert=is_alert)
+    if annotate:
+        frame, _ = draw_action_label(frame, label, confidence, is_alert=is_alert)
 
     # print(
     #     f"[analyze_scene] frame {total_frames}: label={label}, confidence={confidence:.3f}, is_alert={is_alert}"
@@ -318,9 +356,10 @@ def analyze_scene(frame: np.ndarray, total_frames: int) -> Dict[str, Any]:
 
 def reset_predictor_state() -> None:
     """Reset global buffers (useful between videos / tests)."""
-    global _rgb_buffer, _raw_frame_counter
+    global _rgb_buffer, _flow_buffer, _raw_frame_counter
     global current_label, current_confidence, current_is_alert, ttl_counter
     _rgb_buffer = []
+    _flow_buffer = []
     _raw_frame_counter = 0
     current_label = FRONTEND_LABELS["normal"]
     current_confidence = 0.0

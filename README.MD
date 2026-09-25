@@ -16,6 +16,17 @@ npm run dev
 
 ## Backend Startup
 
+Copy `backend/.env.example` to `backend/.env`. Generate a secret with
+`python -c "import secrets; print(secrets.token_urlsafe(48))"` and put it in
+`SECRET_KEY`. The backend refuses to start with a missing or short key (minimum
+32 bytes). Keep the same secret across workers and restarts; changing it invalidates
+existing tokens. Do not commit it.
+
+Set `CORS_ORIGINS` to comma-separated exact frontend origins (scheme, host and
+port, without a trailing slash). The example permits the two local Vite origins;
+replace them with the deployed frontend origin in production. An empty value
+disables cross-origin browser access. Wildcards are rejected.
+
 ```
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
@@ -24,10 +35,9 @@ uvicorn main:app --reload --host 127.0.0.1 --port 8000
 
 Copy `backend/.env.example` to `backend/.env` and set these values:
 
-- `RUSENDER_API_TOKEN` — API token with the `external_mail.send` permission
-- `RUSENDER_KEY_ID` — numeric ID of the activated sending key
-- `EMAIL_FROM` — sender on the verified domain linked to that sending key
-- `EMAIL_TO` — notification recipient
+- `RUSENDER_API_TOKEN` - API token with the `external_mail.send` permission
+- `EMAIL_FROM` - sender on the verified domain linked to that sending key
+- `EMAIL_TO` - notification recipient
 
 The local `.env` file is ignored by Git. Do not commit the API token.
 
@@ -65,16 +75,16 @@ python anomaly_detection_model.py --plot --weight-decay 1e-2 --dropout 0.7 --lab
 
 Other useful flags:
 
-- `--no-plot` — disable plots even if `PLOT_METRICS=1`
-- `--epochs N` — override default epoch count (default 40)
-- `--fusion add|concat` — two-stream fusion mode
-- `--patience N` — early-stop after N epochs without val_loss improvement (default 7; `0` disables)
-- `--min-delta X` — minimum val_loss drop to count as improvement (default `1e-4`)
-- `--weight-decay X` — AdamW L2 (default `5e-3`)
-- `--dropout X` — classifier dropout (default `0.65`)
-- `--label-smoothing X` — CE label smoothing (default `0.1`)
-- `--backbone-lr` / `--head-lr` — differential LRs (defaults `1e-5` / `1e-4`)
-- `--no-class-weights` — disable inverse-frequency FocalLoss alpha
+- `--no-plot` - disable plots even if `PLOT_METRICS=1`
+- `--epochs N` - override default epoch count (default 40)
+- `--fusion add|concat` - two-stream fusion mode
+- `--patience N` - early-stop after N epochs without val_loss improvement (default 7; `0` disables)
+- `--min-delta X` - minimum val_loss drop to count as improvement (default `1e-4`)
+- `--weight-decay X` - AdamW L2 (default `5e-3`)
+- `--dropout X` - classifier dropout (default `0.65`)
+- `--label-smoothing X` - CE label smoothing (default `0.1`)
+- `--backbone-lr` / `--head-lr` - differential LRs (defaults `1e-5` / `1e-4`)
+- `--no-class-weights` - disable inverse-frequency FocalLoss alpha
 
 ### Train / val split
 
