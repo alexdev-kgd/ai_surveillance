@@ -10,6 +10,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
+    expose_headers=["Content-Disposition"],
 )
 
 # Register routers
@@ -25,6 +26,8 @@ for r in (
     routers.roles,
     routers.audit_log,
     routers.cameras,
+    routers.recording,
+    routers.backup,
 ):
     app.include_router(r.router)
 
@@ -43,6 +46,12 @@ from core.db import get_db
 async def load_app_settings():
     async for db in get_db():
         await load_settings(db)
+        from models.settings import Settings
+        from schemas.recording import RecordingSettings
+        from services.recording import set_recording_settings
+        from sqlalchemy import select
+        row = (await db.execute(select(Settings).where(Settings.name == "recording"))).scalar_one_or_none()
+        set_recording_settings(RecordingSettings(**row.settings) if row else RecordingSettings())
         break
 
 from services.rtsp_reader import RTSPCameraReader
@@ -50,6 +59,19 @@ from core.camera_runtime import CAMERA_READERS
 from models.camera import Camera
 from sqlalchemy import select
 import asyncio
+from services.backup import backup_scheduler
+
+@app.on_event("startup")
+async def start_backup_scheduler():
+    app.state.backup_task = asyncio.create_task(backup_scheduler())
+
+@app.on_event("shutdown")
+async def stop_backup_scheduler():
+    task = getattr(app.state, "backup_task", None)
+    if task is not None:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
 @app.on_event("startup")
 async def init_rtsp_cameras_from_db():
     """
@@ -63,7 +85,7 @@ async def init_rtsp_cameras_from_db():
 
         for cam in cameras:
             if cam.id not in CAMERA_READERS:
-                reader = RTSPCameraReader(cam.rtsp, cam.name)
+                reader = RTSPCameraReader(cam.rtsp, cam.name, camera_id=cam.id)
                 reader.start()
                 CAMERA_READERS[cam.id] = reader
         break  # берем только один раз сессии
@@ -75,6 +97,8 @@ def shutdown_rtsp_from_db():
     """
     for reader in CAMERA_READERS.values():
         reader.stop()
+    from services.recording import close_all_recordings
+    close_all_recordings()
 
 @app.get("/")
 def root():

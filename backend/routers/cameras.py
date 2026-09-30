@@ -2,11 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from uuid import uuid4
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert
 from core.db import get_db
 from core.cameras import CAMERAS
 from core.camera_runtime import CAMERA_READERS
 from core.audit_action import AuditAction
 from services.rtsp_reader import RTSPCameraReader
+from services.recording import close_camera_recording
 from services.auth import get_current_user
 from services.audit_log import log_action
 from models.camera import Camera
@@ -61,7 +63,7 @@ async def add_camera(
     db.add(camera)
     await db.commit()
 
-    reader = RTSPCameraReader(payload.rtsp, payload.name)
+    reader = RTSPCameraReader(payload.rtsp, payload.name, camera_id=cam_id)
     reader.start()
     CAMERA_READERS[cam_id] = reader
 
@@ -91,18 +93,24 @@ async def sync_usb_cameras(
     existing_usb = {camera.id: camera for camera in result.scalars().all()}
 
     # Existing names can be user edits, so only new cameras get device labels.
-    for device_id, label in normalized_devices.items():
-        camera_id = f"usb-{device_id}"
-        if camera_id not in existing_usb:
-            db.add(
-                Camera(
-                    id=camera_id,
-                    name=label,
-                    rtsp="",
-                    type="USB",
-                    enabled=False,
-                )
+    # Another sync request may insert the same device after the SELECT above.
+    new_cameras = [
+        {
+            "id": f"usb-{device_id}",
+            "name": label,
+            "rtsp": "",
+            "type": "USB",
+            "enabled": False,
+        }
+        for device_id, label in normalized_devices.items()
+        if f"usb-{device_id}" not in existing_usb
+    ]
+    if new_cameras:
+        await db.execute(
+            insert(Camera).values(new_cameras).on_conflict_do_nothing(
+                index_elements=[Camera.id]
             )
+        )
 
     for camera_id, camera in existing_usb.items():
         if camera_id in expected_ids:
@@ -157,13 +165,14 @@ async def update_camera(
     await db.commit()
 
     if is_ip_camera:
+        close_camera_recording(camera_id)
         reader = CAMERA_READERS.get(camera_id)
         if url_changed:
             if reader:
                 reader.stop()
             CAMERA_READERS.pop(camera_id, None)
             if camera.enabled:
-                replacement = RTSPCameraReader(rtsp, name)
+                replacement = RTSPCameraReader(rtsp, name, camera_id=camera_id)
                 CAMERA_READERS[camera_id] = replacement
                 replacement.start()
         elif reader:
@@ -201,7 +210,7 @@ async def toggle_camera(
     if camera.enabled:
         if is_ip_camera:
             if reader is None:
-                reader = RTSPCameraReader(camera.rtsp, camera.name)
+                reader = RTSPCameraReader(camera.rtsp, camera.name, camera_id=camera_id)
                 CAMERA_READERS[camera_id] = reader
             reader.start()
 
@@ -212,6 +221,7 @@ async def toggle_camera(
             details={"message": f'Камера "{camera.name}" включена'}
         )
     else:
+        close_camera_recording(camera_id)
         if is_ip_camera and reader:
             reader.stop()
         await log_action(
@@ -238,6 +248,7 @@ async def delete_camera(
         raise HTTPException(404, "Camera not found")
 
     reader = CAMERA_READERS.pop(camera_id, None)
+    close_camera_recording(camera_id)
     if str(camera.type).upper() == "IP" and reader:
         reader.stop()
 

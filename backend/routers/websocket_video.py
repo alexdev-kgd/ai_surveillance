@@ -19,6 +19,7 @@ from services.anomaly_predictor import (
 from core.db import get_db
 from core.camera_runtime import CAMERA_READERS
 from services.rtsp_reader import RTSPCameraReader
+from services.recording import record_frame, close_camera_recording
 
 router = APIRouter(tags=["Video Stream"])
 
@@ -73,6 +74,8 @@ async def stream_usb_camera(
             frame = decode_websocket_frame(message)
             if frame is None:
                 continue
+
+            await asyncio.to_thread(record_frame, camera_id, camera_name, frame, 30.0)
 
             received_frames += 1
             latest_frame_idx = received_frames
@@ -153,6 +156,7 @@ async def stream_usb_camera(
         for task in tasks:
             task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
+        close_camera_recording(camera_id)
 
 @router.websocket("/ws/video/{camera_id}")
 async def websocket_video(ws: WebSocket, camera_id: str):
@@ -202,7 +206,7 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                     await ws.close(code=1011)
                     return
 
-                reader = RTSPCameraReader(rtsp_url, camera_name)
+                reader = RTSPCameraReader(rtsp_url, camera_name, camera_id=camera_id)
                 reader.start()
                 CAMERA_READERS[camera_id] = reader
 
@@ -210,6 +214,12 @@ async def websocket_video(ws: WebSocket, camera_id: str):
                 reader.start()
 
             while True:
+                current_reader = CAMERA_READERS.get(camera_id)
+                if current_reader is not reader:
+                    if current_reader is None:
+                        await ws.close(code=1012)
+                        return
+                    reader = current_reader
                 frame = reader.get_frame()
                 if frame is None:
                     await asyncio.sleep(0.1)

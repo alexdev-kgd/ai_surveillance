@@ -21,6 +21,8 @@ dist-ssr
 *.db
 *.pyc
 *.npy
+saved_recordings/
+saved_backups/
 
 # Editor directories and files
 .vscode/*

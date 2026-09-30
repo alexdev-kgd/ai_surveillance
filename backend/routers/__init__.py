@@ -8,3 +8,5 @@ from . import permissions
 from . import roles
 from . import audit_log
 from . import cameras
+from . import recording
+from . import backup

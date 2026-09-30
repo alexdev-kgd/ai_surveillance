@@ -82,7 +82,7 @@ export const DetectionSettings = () => {
 	if (loading) return <div>Загрузка настроек...</div>;
 
 	return (
-		<div style={{ padding: 20, maxWidth: 600 }}>
+		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
 			<div>
 				<h2 style={{ marginBottom: 20 }}>Настройки детекции</h2>
 
@@ -125,7 +125,7 @@ export const DetectionSettings = () => {
 							style={{ width: "100%" }}
 						/>
 						<div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>
-							Отображение: {action.sensitivity.toFixed(2)} (выше → легче
+							Отображение: {action.sensitivity.toFixed(2)} (чем выше, тем легче
 							показать метку)
 						</div>
 

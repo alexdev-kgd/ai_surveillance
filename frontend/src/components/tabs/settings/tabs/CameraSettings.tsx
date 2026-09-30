@@ -168,8 +168,8 @@ export const CameraSettings = () => {
 	if (loading) return <div>Загрузка камер...</div>;
 
 	return (
-		<div style={{ padding: 20, maxWidth: 600 }}>
-			<h2>Список камер</h2>
+		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+			<h2 style={{ marginBottom: 20 }}>Список камер</h2>
 
 			{cameras.map((camera) => (
 				<div
@@ -239,19 +239,19 @@ export const CameraSettings = () => {
 					{editingCameraId !== camera.id && (
 						<div>
 							<button
-							style={{ marginTop: 6 }}
+								style={{ marginTop: 6 }}
 								onClick={() => toggleCamera(camera.id)}
 							>
 								{camera.enabled ? "Выключить" : "Включить"}
 							</button>
 							<button
-							style={{ marginTop: 6, marginLeft: 8 }}
+								style={{ marginTop: 6, marginLeft: 8 }}
 								onClick={() => startEditing(camera)}
 							>
 								Редактировать
-						</button>
+							</button>
 							<button
-							style={{ marginTop: 6, marginLeft: 8 }}
+								style={{ marginTop: 6, marginLeft: 8 }}
 								onClick={() => removeCamera(camera.id)}
 							>
 								Удалить

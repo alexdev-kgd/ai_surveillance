@@ -14,6 +14,7 @@ class RTSPCameraReader:
         self,
         rtsp_url: str,
         name: str = "Camera",
+        camera_id: str | None = None,
         reconnect_delay_sec: float = 2.0,
         open_timeout_ms: int = 5000,
         read_timeout_ms: int = 5000,
@@ -21,6 +22,7 @@ class RTSPCameraReader:
         self.rtsp_url = rtsp_url
         self._safe_rtsp_url = self._normalize_rtsp_url(rtsp_url)
         self.name = name
+        self.camera_id = camera_id
         self.reconnect_delay_sec = reconnect_delay_sec
         self.open_timeout_ms = open_timeout_ms
         self.read_timeout_ms = read_timeout_ms
@@ -149,6 +151,11 @@ class RTSPCameraReader:
                 with self.lock:
                     self.last_frame = frame
                     self.last_frame_ts = time.time()
+                if self.camera_id:
+                    from services.recording import record_frame
+                    fps = self.cap.get(cv2.CAP_PROP_FPS) if self.cap is not None else 20.0
+                    # The IP camera preview flips the received image vertically.
+                    record_frame(self.camera_id, self.name, frame, fps, flip_vertical=True)
 
         self._release_capture()
         self._connected = False

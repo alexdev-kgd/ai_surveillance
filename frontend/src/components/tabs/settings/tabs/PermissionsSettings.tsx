@@ -68,7 +68,7 @@ export const PermissionsSettings = () => {
 	if (loading) return <div>Загрузка настроек...</div>;
 
 	return (
-		<div style={{ padding: 20, maxWidth: 600 }}>
+		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
 			<h2 style={{ marginBottom: 20 }}>
 				Управление разрешениями пользователей
 			</h2>
