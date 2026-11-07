@@ -6,7 +6,8 @@ export const DETECTED_ACTION_LABELS: Record<string, string> = {
 	kick: "Удар ногой",
 	punch: "Удар кулаком",
 	run: "Бег",
-	shoot_gun: "Стрельба из оружия",
+	hold_weapon: "Оружие в руках",
+	shoot_gun: "Оружие в руках",
 	shoplift: "Кража",
 	normal: "Нормальное поведение",
 };

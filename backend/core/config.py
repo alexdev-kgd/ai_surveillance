@@ -51,7 +51,7 @@ ACTIONS_TO_DETECT_CLASS_NAMES = [
     "kick",
     "punch",
     "run",
-    "shoot_gun",
+    "hold_weapon",
     "shoplift",
 ]
 
@@ -62,7 +62,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 # sensitivity: higher → lower confidence threshold (more detections).
 # alert_sensitivity: used for events/notifications; typically lower than
 # display sensitivity so alerts require higher confidence.
-# High-cost classes (fall_floor, shoot_gun) use stricter (lower) values.
+# High-cost classes (fall_floor, hold_weapon) use stricter (lower) values.
 ACTIONS = {
     "assault": {
         "enabled": True,
@@ -71,7 +71,6 @@ ACTIONS = {
     },
     "fall_floor": {
         "enabled": True,
-        # raised threshold vs old 0.6 → fewer standing→fall false positives
         "sensitivity": 0.35,
         "alert_sensitivity": 0.20,
     },
@@ -100,9 +99,8 @@ ACTIONS = {
         "sensitivity": 0.55,
         "alert_sensitivity": 0.40,
     },
-    "shoot_gun": {
+    "hold_weapon": {
         "enabled": True,
-        # old 0.9 was very loose (threshold ~0.27); raise confidence bar
         "sensitivity": 0.30,
         "alert_sensitivity": 0.15,
     },
@@ -129,6 +127,11 @@ DEFAULT_SETTINGS = {
     "useObjectDetection": False,
 }
 
+# Stored settings and older checkpoints used shoot_gun before the class rename.
+LEGACY_ACTION_ALIASES = {
+    "shoot_gun": "hold_weapon",
+}
+
 CLASS_TO_ACTION = {
     "assault": "assault",
     "fall_floor": "fall_floor",
@@ -137,7 +140,8 @@ CLASS_TO_ACTION = {
     "kick": "kick",
     "punch": "punch",
     "run": "run",
-    "shoot_gun": "shoot_gun",
+    "hold_weapon": "hold_weapon",
+    "shoot_gun": "hold_weapon",
     "shoplift": "shoplift",
 }
 
@@ -149,7 +153,7 @@ FRONTEND_LABELS = {
     "kick": "Удар ногой",
     "punch": "Удар кулаком",
     "run": "Бег",
-    "shoot_gun": "Стрельба из оружия",
+    "hold_weapon": "Оружие в руках",
     "shoplift": "Кража",
     "normal": "Нормальное поведение",
 }

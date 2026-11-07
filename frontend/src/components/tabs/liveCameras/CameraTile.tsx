@@ -35,7 +35,8 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 
 		const logOpen = () => console.log(`WS connected: ${camera.id}`);
 		const logClose = () => console.log(`WS closed: ${camera.id}`);
-		const logError = (err: Event) => console.error(`WS error ${camera.id}`, err);
+		const logError = (err: Event) =>
+			console.error(`WS error ${camera.id}`, err);
 		socket.addEventListener("open", logOpen);
 		socket.addEventListener("close", logClose);
 		socket.addEventListener("error", logError);
@@ -75,11 +76,16 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 
 				if (detection.bbox?.length === 4) {
 					const [x1, y1, x2, y2] = detection.bbox;
-					ctx.strokeRect(x1, flipVertically ? height - y2 : y1, x2 - x1, y2 - y1);
+					ctx.strokeRect(
+						x1,
+						flipVertically ? height - y2 : y1,
+						x2 - x1,
+						y2 - y1
+					);
 				}
 
 				const text = `${detection.label} (${detection.confidence.toFixed(2)})`;
-				const textX = flipVertically ? 16 : (detection.bbox?.[0] ?? 16);
+				const textX = flipVertically ? 16 : detection.bbox?.[0] ?? 16;
 				const textY = flipVertically
 					? 30 + index * 28
 					: Math.max(22, (detection.bbox?.[1] ?? 30) - 8);
@@ -97,7 +103,9 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 			if (typeof msg.analysisFps === "number") setAnalysisFps(msg.analysisFps);
 
 			const suspicious = detections
-				.filter((detection) => detection.label !== DETECTED_ACTION_LABELS.normal)
+				.filter(
+					(detection) => detection.label !== DETECTED_ACTION_LABELS.normal
+				)
 				.sort((a, b) => b.confidence - a.confidence);
 
 			if (suspicious.length > 0 && onSuspiciousDetection) {
@@ -140,7 +148,9 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 			img.onload = () => {
 				canvas.width = img.width;
 				canvas.height = img.height;
-				setMediaWidth((current) => (current === img.width ? current : img.width));
+				setMediaWidth((current) =>
+					current === img.width ? current : img.width
+				);
 				if (!ctx) return;
 				ctx.clearRect(0, 0, canvas.width, canvas.height);
 				ctx.save();
@@ -149,7 +159,13 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 				ctx.scale(-1, 1);
 				ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 				ctx.restore();
-				drawDetections({ ...msg, detections }, canvas, img.width, img.height, true);
+				drawDetections(
+					{ ...msg, detections },
+					canvas,
+					img.width,
+					img.height,
+					true
+				);
 			};
 			img.src = `data:image/jpeg;base64,${msg.frame}`;
 		};
@@ -200,7 +216,10 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 						break;
 					} catch (err) {
 						lastConstraintError = err;
-						if (!(err instanceof DOMException) || err.name !== "OverconstrainedError") {
+						if (
+							!(err instanceof DOMException) ||
+							err.name !== "OverconstrainedError"
+						) {
 							throw err;
 						}
 					}
@@ -251,15 +270,24 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 						ws.bufferedAmount < MAX_WEBSOCKET_BUFFER_BYTES
 					) {
 						nextSendAt =
-							nextSendAt === 0 || now - nextSendAt > ANALYSIS_FRAME_INTERVAL_MS * 2
+							nextSendAt === 0 ||
+							now - nextSendAt > ANALYSIS_FRAME_INTERVAL_MS * 2
 								? now + ANALYSIS_FRAME_INTERVAL_MS
 								: nextSendAt + ANALYSIS_FRAME_INTERVAL_MS;
 						encoding = true;
 						const captureWidth = video.videoWidth || 640;
 						const captureHeight = video.videoHeight || 480;
-						if (captureCanvas.width !== captureWidth) captureCanvas.width = captureWidth;
-						if (captureCanvas.height !== captureHeight) captureCanvas.height = captureHeight;
-						captureContext?.drawImage(video, 0, 0, captureCanvas.width, captureCanvas.height);
+						if (captureCanvas.width !== captureWidth)
+							captureCanvas.width = captureWidth;
+						if (captureCanvas.height !== captureHeight)
+							captureCanvas.height = captureHeight;
+						captureContext?.drawImage(
+							video,
+							0,
+							0,
+							captureCanvas.width,
+							captureCanvas.height
+						);
 						captureCanvas.toBlob(
 							(blob) => {
 								encoding = false;
@@ -324,14 +352,6 @@ export default function CameraTile({ camera, onSuspiciousDetection }: Props) {
 							: "block h-auto w-full"
 					}
 				/>
-				{isLocalCamera && (
-					<div
-						data-testid={`camera-fps-${camera.id}`}
-						className="absolute right-2 top-2 rounded bg-black/70 px-2 py-1 font-mono text-xs text-white"
-					>
-						Поток: {streamFps.toFixed(1)} FPS · Анализ: {analysisFps.toFixed(1)} FPS
-					</div>
-				)}
 			</div>
 		</div>
 	);

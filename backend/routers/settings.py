@@ -8,7 +8,7 @@ from schemas.settings import Settings as SettingsSchema
 from models.settings import Settings
 from models.user import User
 from services.auth import get_current_user
-from services.settings import load_settings
+from services.settings import load_settings, normalize_detection
 from services.audit_log import log_action
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
@@ -51,13 +51,17 @@ async def update_settings(
 
     settings = result.scalars().first()
 
+    stored = payload.dict()
+    detection, _changed = normalize_detection(stored.get("detection") or {})
+    stored["detection"] = detection
+
     if settings:
-        settings.settings = payload.dict()
+        settings.settings = stored
         settings.updated_by = str(user.id)
     else:
         settings = Settings(
             name="default",
-            settings=payload.dict(),
+            settings=stored,
             updated_by=str(user.id)
         )
         db.add(settings)
@@ -68,4 +72,4 @@ async def update_settings(
     await load_settings(db)
     await log_action(db, user.id, AuditAction.AI_SETTINGS_UPDATE)
 
-    return payload
+    return SettingsSchema(**stored)

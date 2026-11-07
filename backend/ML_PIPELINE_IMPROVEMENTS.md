@@ -5,7 +5,7 @@ Recommendations for improving action classification accuracy in the AI Surveilla
 **Context:** Dataset clips are roughly 3–5 seconds each. Observed failures include:
 
 - Standing / normal behavior classified as `fall_floor`
-- Punching classified as `shoot_gun`
+- Punching classified as `hold_weapon`
 
 **Legend:** ✅ = implemented in codebase · ⬜ = still open
 
@@ -13,16 +13,16 @@ Recommendations for improving action classification accuracy in the AI Surveilla
 
 ## Current pipeline (summary)
 
-| Piece | Current setup |
-|--------|----------------|
-| Model | Two-stream **X3D-M** (RGB + optical flow), fusion=`add` |
-| Checkpoint | `suspicious_actions_6classes.pth` → **6 classes only** |
-| Train classes | `normal`, `assault`, `fall_floor`, `run`, `shoot_gun`, `shoplift` |
-| Dataset folders | **10** classes (also `hit`, `jump`, `kick`, `punch`) |
-| Clips | ~3–5 s, 224×224; shared preprocess in `utils/video_preprocess.py` |
-| Inference | Strided buffer (`CLIP_LEN=48`, `SAMPLE_STRIDE=4`) + **online Farneback flow** |
-| Training script | `fine-tune/anomaly_detection_model.py` |
-| Inference | `services/anomaly_predictor.py`, gates in `services/detection_gates.py` |
+| Piece           | Current setup                                                                 |
+| --------------- | ----------------------------------------------------------------------------- |
+| Model           | Two-stream **X3D-M** (RGB + optical flow), fusion=`add`                       |
+| Checkpoint      | `suspicious_actions_6classes.pth` → **6 classes only**                        |
+| Train classes   | `normal`, `assault`, `fall_floor`, `run`, `hold_weapon`, `shoplift`           |
+| Dataset folders | **10** classes (also `hit`, `jump`, `kick`, `punch`)                          |
+| Clips           | ~3–5 s, 224×224; shared preprocess in `utils/video_preprocess.py`             |
+| Inference       | Strided buffer (`CLIP_LEN=48`, `SAMPLE_STRIDE=4`) + **online Farneback flow** |
+| Training script | `fine-tune/anomaly_detection_model.py`                                        |
+| Inference       | `services/anomaly_predictor.py`, gates in `services/detection_gates.py`       |
 
 ---
 
@@ -36,22 +36,22 @@ Recommendations for improving action classification accuracy in the AI Surveilla
 
 ---
 
-### 2. `punch` is not a model class → collapses into `shoot_gun` — ⬜ open
+### 2. `punch` is not a model class → collapses into `hold_weapon` — ⬜ open
 
 Checkpoint classes:
 
 ```text
-['normal', 'assault', 'fall_floor', 'run', 'shoot_gun', 'shoplift']
+['normal', 'assault', 'fall_floor', 'run', 'hold_weapon', 'shoplift']
 ```
 
-Dataset has `punch` / `hit` / `kick` (~120–130 train each), but they are **never trained**. Arm-extension / fighting motion is closest to `shoot_gun` or `assault` in feature space → punch becomes “shooting”.
+Dataset has `punch` / `hit` / `kick` (~120–130 train each), but they are **never trained**. Arm-extension / fighting motion is closest to `hold_weapon` or `assault` in feature space → punch becomes “shooting”.
 
-**Mitigation in place:** ✅ weapon/pose gate can veto some false `shoot_gun` (extended-arm / YOLO knife|scissors proxies). Taxonomy merge/retrain still needed.
+**Mitigation in place:** ✅ weapon/pose gate can veto some false `hold_weapon` (extended-arm / YOLO knife|scissors proxies). Taxonomy merge/retrain still needed.
 
 **Fix options (pick one taxonomy):**
 
-- **A (recommended):** merge confusable fight classes, e.g. `violence = {assault, punch, hit, kick}`; keep `shoot_gun` only if guns are clearly distinct.
-- **B:** retrain on **all 10** classes with enough balanced data and hard-negative mining between punch vs shoot_gun.
+- **A (recommended):** merge confusable fight classes, e.g. `violence = {assault, punch, hit, kick}`; keep `hold_weapon` only if guns are clearly distinct.
+- **B:** retrain on **all 10** classes with enough balanced data and hard-negative mining between punch vs hold_weapon.
 - **C:** two-stage: coarse (normal / fall / run / violence / theft / weapon), then fine classifier only when coarse says violence/weapon.
 
 Do not keep 10 folders if the model only has 6 labels.
@@ -62,14 +62,14 @@ Do not keep 10 folders if the model only has 6 labels.
 
 Approximate counts:
 
-| Class | Train | Val |
-|--------|------:|----:|
-| normal | 522 | **50** |
-| fall_floor | 103 | 136 |
-| run | 173 | 232 |
-| shoot_gun | 93 | 103 |
-| assault | 60 | 50 |
-| shoplift | 54 | 58 |
+| Class               |   Train |                               Val |
+| ------------------- | ------: | --------------------------------: |
+| normal              |     522 |                            **50** |
+| fall_floor          |     103 |                               136 |
+| run                 |     173 |                               232 |
+| hold_weapon         |      93 |                               103 |
+| assault             |      60 |                                50 |
+| shoplift            |      54 |                                58 |
 | punch/hit/kick/jump | present | present (unused by 6-class model) |
 
 **Fix:** stratified ~80/20 (or 70/15/15 train/val/test) **per class**, same ratio for normal; target **≥150–300** clips per rare class if possible; keep a held-out test set never used for training.
@@ -80,13 +80,13 @@ Approximate counts:
 
 Shared module `utils/video_preprocess.py`:
 
-| Setting | Value |
-|---------|------:|
-| `CLIP_LEN` / `FRAME_WINDOW` | 48 |
-| `SAMPLE_STRIDE` / `STRIDE` | 4 |
-| `FRAME_SIZE` | 224×224 |
-| RGB mean/std | 0.45 / 0.225 |
-| Flow | Farneback (`FLOW_PARAMS`) |
+| Setting                     |                     Value |
+| --------------------------- | ------------------------: |
+| `CLIP_LEN` / `FRAME_WINDOW` |                        48 |
+| `SAMPLE_STRIDE` / `STRIDE`  |                         4 |
+| `FRAME_SIZE`                |                   224×224 |
+| RGB mean/std                |              0.45 / 0.225 |
+| Flow                        | Farneback (`FLOW_PARAMS`) |
 
 Training RGB uses `read_video_strided_rgb`; serve buffers every `SAMPLE_STRIDE`-th frame and builds the same clip length. Re-run `fine-tune/precompute_flow.py` so `*_flow.npy` matches the new sampling (or train with `--online-flow`).
 
@@ -102,16 +102,16 @@ With `useObjectDetection=True`, inference runs on **person crops**. Training mos
 
 ### 6. Training loop does not select a good model — partially ✅
 
-| Item | Status |
-|------|--------|
-| Validation metrics / confusion matrix | ✅ |
-| Best checkpoint by val macro-F1 | ✅ (`suspicious_actions_best.pth`) |
-| Early stopping on val loss plateau | ✅ patience=7, `--patience` / `--min-delta` |
-| Gradient clipping (`max_grad_norm`) | ✅ |
-| FocalLoss class weights (`alpha`) | ⬜ |
-| Differential LRs | ⬜ |
-| Stronger augmentation | ✅ |
-| Matplotlib loss/F1 plots (flag) | ✅ `--plot` / `PLOT_METRICS=1` |
+| Item                                  | Status                                      |
+| ------------------------------------- | ------------------------------------------- |
+| Validation metrics / confusion matrix | ✅                                          |
+| Best checkpoint by val macro-F1       | ✅ (`suspicious_actions_best.pth`)          |
+| Early stopping on val loss plateau    | ✅ patience=7, `--patience` / `--min-delta` |
+| Gradient clipping (`max_grad_norm`)   | ✅                                          |
+| FocalLoss class weights (`alpha`)     | ⬜                                          |
+| Differential LRs                      | ⬜                                          |
+| Stronger augmentation                 | ✅                                          |
+| Matplotlib loss/F1 plots (flag)       | ✅ `--plot` / `PLOT_METRICS=1`              |
 
 ---
 
@@ -124,10 +124,10 @@ With `useObjectDetection=True`, inference runs on **person crops**. Training mos
 - ✅ Stricter display/alert thresholds for `fall_floor`
 - ✅ MediaPipe pose gate vetoes upright torso for `fall_floor`
 
-**Punch → shoot_gun**
+**Punch → hold_weapon**
 
 - Punch not in label set → still open
-- ✅ Weapon threat gate (pose arm extension + YOLO knife/scissors proxies) can veto weak `shoot_gun`
+- ✅ Weapon threat gate (pose arm extension + YOLO knife/scissors proxies) can veto weak `hold_weapon`
 
 ---
 
@@ -142,7 +142,7 @@ With `useObjectDetection=True`, inference runs on **person crops**. Training mos
 
 ### P1 — Data quality (next biggest win for 3–5 s clips)
 
-5. ⬜ **Clean labels:** manually audit `fall_floor` vs standing/sitting, `shoot_gun` vs punch/pointing, `assault` vs hit/punch. Remove multi-action clips or re-cut so the **labeled action occupies most of the clip**.
+5. ⬜ **Clean labels:** manually audit `fall_floor` vs standing/sitting, `hold_weapon` vs punch/pointing, `assault` vs hit/punch. Remove multi-action clips or re-cut so the **labeled action occupies most of the clip**.
 6. ⬜ **Balance:** oversample rare classes, undersample normal, or use **class-balanced sampling** + FocalLoss with `alpha` from inverse class frequency.
 7. ⬜ **Hard negatives for normal:** standing, walking slowly, sitting down, bending, raising hand, phone use, pointing — labeled **normal** (these kill false falls/shoots).
 8. ⬜ **Person crops for all classes** if YOLO is used in production.
@@ -153,7 +153,7 @@ With `useObjectDetection=True`, inference runs on **person crops**. Training mos
 
 11. ✅ Log every epoch: val accuracy, **macro-F1**, **per-class recall/precision**, full **confusion matrix**.
 12. ✅ Save **best val macro-F1** (or worst-class recall), not last epoch. → `suspicious_actions_best.pth`
-12b. ✅ **Early stopping** when val_loss plateaus (`--patience`, default 7).
+    12b. ✅ **Early stopping** when val_loss plateaus (`--patience`, default 7).
 13. ⬜ Differential LRs: higher for classifier + flow stem, lower for pretrained RGB.
 14. ✅ Apply gradient clipping; ⬜ consider label smoothing (0.05–0.1).
 15. ⬜ Optional: freeze RGB for first N epochs, then unfreeze.
@@ -161,10 +161,10 @@ With `useObjectDetection=True`, inference runs on **person crops**. Training mos
 ### P3 — Inference / product-level accuracy
 
 16. ⬜ **Confidence + temporal consensus:** require class C for K of last N windows (e.g. 3/5) before alerting.
-17. ✅ Raise thresholds for high-cost classes (`shoot_gun`, `fall_floor`); keep separate **alert threshold** vs **display threshold** (`sensitivity` / `alert_sensitivity`).
+17. ✅ Raise thresholds for high-cost classes (`hold_weapon`, `fall_floor`); keep separate **alert threshold** vs **display threshold** (`sensitivity` / `alert_sensitivity`).
 18. ⬜ If YOLO is on: **per-track** buffer (one buffer per person ID), not one global buffer shared across people.
 19. ✅ Pose gate for fall: MediaPipe “torso near horizontal” veto for upright people (`services/detection_gates.py` → `FallPoseGate`). Flag: `ENABLE_FALL_POSE_GATE`.
-20. ✅ For gun: second check when model says `shoot_gun` — YOLO weapon proxies (knife/scissors) + extended-arm pose (`WeaponThreatGate`). Flag: `ENABLE_WEAPON_THREAT_GATE`. (COCO has no firearm class; a dedicated weapon model can replace proxies later.)
+20. ✅ For gun: second check when model says `hold_weapon` — YOLO weapon proxies (knife/scissors) + extended-arm pose (`WeaponThreatGate`). Flag: `ENABLE_WEAPON_THREAT_GATE`. (COCO has no firearm class; a dedicated weapon model can replace proxies later.)
 
 ### P4 — Model upgrades (only after P0–P2)
 
@@ -181,7 +181,7 @@ normal
 fall
 run
 violence          # assault + punch + hit + kick
-weapon_threat     # shoot_gun (only clear gun pose / weapon visible)
+weapon_threat     # hold_weapon (only clear gun pose / weapon visible)
 theft             # shoplift
 ```
 
@@ -208,14 +208,14 @@ Drop or disable `jump` unless it is a real alert class. Fewer, cleaner classes b
 
 ## Quick wins (without full redesign)
 
-| Change | Effect | Status |
-|--------|--------|--------|
-| Don’t zero flow at inference | Stops large train/serve gap | ✅ |
-| Disable/merge `shoot_gun` until punch is labeled or merged | Stops punch→gun | ⬜ (+ partial gate) |
-| Add many “standing still” normals; retrain | Cuts normal→fall | ⬜ |
-| Raise `fall_floor` / `shoot_gun` sensitivity (higher threshold) | Fewer false positives now | ✅ |
-| Per-person buffers + 3-frame majority vote | Stabilizes live stream | ⬜ |
-| Confusion matrix on a real test set of your camera footage | Shows true weak pairs | ✅ (val each epoch) |
+| Change                                                            | Effect                      | Status              |
+| ----------------------------------------------------------------- | --------------------------- | ------------------- |
+| Don’t zero flow at inference                                      | Stops large train/serve gap | ✅                  |
+| Disable/merge `hold_weapon` until punch is labeled or merged      | Stops punch→gun             | ⬜ (+ partial gate) |
+| Add many “standing still” normals; retrain                        | Cuts normal→fall            | ⬜                  |
+| Raise `fall_floor` / `hold_weapon` sensitivity (higher threshold) | Fewer false positives now   | ✅                  |
+| Per-person buffers + 3-frame majority vote                        | Stabilizes live stream      | ⬜                  |
+| Confusion matrix on a real test set of your camera footage        | Shows true weak pairs       | ✅ (val each epoch) |
 
 ---
 
@@ -260,10 +260,10 @@ Disable plots: omit `--plot`, or pass `--no-plot`.
 
 High-cost defaults (stricter than before):
 
-| Action | sensitivity (display) | alert_sensitivity |
-|--------|----------------------:|------------------:|
-| fall_floor | 0.35 | 0.20 |
-| shoot_gun | 0.30 | 0.15 |
+| Action      | sensitivity (display) | alert_sensitivity |
+| ----------- | --------------------: | ----------------: |
+| fall_floor  |                  0.35 |              0.20 |
+| hold_weapon |                  0.30 |              0.15 |
 
 Labels below alert but above display are shown in **orange**; alerts in **red**.
 
@@ -274,7 +274,7 @@ Labels below alert but above display are shown in **orange**; alerts in **red**.
 Accuracy is limited less by “X3D isn’t good enough” and more by:
 
 1. ~~**Training on flow, inferring with zeros**~~ ✅ fixed
-2. **Predicting classes the model never learned** (`punch` → `shoot_gun`) ⬜
+2. **Predicting classes the model never learned** (`punch` → `hold_weapon`) ⬜
 3. **Broken split / weak normal coverage** → standing → fall ⬜
 4. ~~**Inconsistent temporal preprocessing**~~ ✅ fixed · **global buffer** when multi-person ⬜
 
@@ -284,17 +284,17 @@ Next highest ROI: taxonomy merge + stratified split + retrain with best-F1 check
 
 ## Related files
 
-| Path | Role |
-|------|------|
-| `utils/video_preprocess.py` | Shared CLIP_LEN, stride, normalize, Farneback flow |
-| `utils/metrics.py` | Confusion matrix, precision/recall/F1 |
-| `utils/plot_utils.py` | Training loss/F1/accuracy plots |
-| `fine-tune/anomaly_detection_model.py` | Training + val metrics + aug + plots |
-| `fine-tune/precompute_flow.py` | Offline optical flow (`*_flow.npy`) |
-| `models/anomaly_model.py` | Loaded checkpoint + `predict()` |
-| `services/anomaly_predictor.py` | Live/upload inference, dual thresholds |
-| `services/detection_gates.py` | Fall pose gate + weapon threat gate |
-| `core/config.py` | Classes, thresholds, gate flags, `FRAME_WINDOW`, `STRIDE` |
-| `schemas/settings.py` | `alert_sensitivity` field |
-| `action_recognizer.py` | Simple MediaPipe pose rules (stub) |
-| `dataset/train/`, `dataset/val/` | Labeled video + flow pairs |
+| Path                                   | Role                                                      |
+| -------------------------------------- | --------------------------------------------------------- |
+| `utils/video_preprocess.py`            | Shared CLIP_LEN, stride, normalize, Farneback flow        |
+| `utils/metrics.py`                     | Confusion matrix, precision/recall/F1                     |
+| `utils/plot_utils.py`                  | Training loss/F1/accuracy plots                           |
+| `fine-tune/anomaly_detection_model.py` | Training + val metrics + aug + plots                      |
+| `fine-tune/precompute_flow.py`         | Offline optical flow (`*_flow.npy`)                       |
+| `models/anomaly_model.py`              | Loaded checkpoint + `predict()`                           |
+| `services/anomaly_predictor.py`        | Live/upload inference, dual thresholds                    |
+| `services/detection_gates.py`          | Fall pose gate + weapon threat gate                       |
+| `core/config.py`                       | Classes, thresholds, gate flags, `FRAME_WINDOW`, `STRIDE` |
+| `schemas/settings.py`                  | `alert_sensitivity` field                                 |
+| `action_recognizer.py`                 | Simple MediaPipe pose rules (stub)                        |
+| `dataset/train/`, `dataset/val/`       | Labeled video + flow pairs                                |

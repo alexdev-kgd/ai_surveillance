@@ -11,7 +11,7 @@ def put_text_ru(
     position=TEXT_DEFAULT_POSITION,
     font_size=12,
     color=(0, 0, 255),
-    font_scale=0.01, # % of frame height
+    font_scale=0.05, # % of frame height
 ):
     h, w = frame.shape[:2]
 

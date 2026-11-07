@@ -126,12 +126,12 @@ class FallPoseGate:
 
 class WeaponThreatGate:
     """
-    Confirm shoot_gun-like threat via:
+    Confirm hold_weapon-like threat via:
 
     1) YOLO weapon-proxy classes (knife/scissors - no firearm in COCO)
     2) Pose: extended arm(s) consistent with aiming / pointing a weapon
 
-    If neither signal supports a weapon threat, veto shoot_gun.
+    If neither signal supports a weapon threat, veto hold_weapon.
     """
 
     def __init__(

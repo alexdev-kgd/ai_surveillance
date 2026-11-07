@@ -42,8 +42,8 @@ from utils.video_preprocess import (
 # ----------------------------
 # CONFIG
 # ----------------------------
-# class_names = ["normal", "assault", "fall_floor", "run", "shoot_gun", "shoplift"]
-class_names = ["normal", "assault", "shoot_gun", "shoplift"]
+# class_names = ["normal", "assault", "fall_floor", "run", "hold_weapon", "shoplift"]
+class_names = ["normal", "assault", "hold_weapon", "shoplift"]
 
 epochs = 40
 backbone_lr = 1e-5

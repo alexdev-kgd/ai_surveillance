@@ -16,7 +16,7 @@ from core.config import (
 from models.anomaly_model import class_names, video_model
 from models.yolo_detector import yolo_model
 from services.detection_gates import get_fall_pose_gate, get_weapon_threat_gate
-from services.settings import get_settings
+from services.settings import detection_action_config, get_settings
 from utils.device import device
 from utils.text import TEXT_DEFAULT_POSITION, put_text_ru
 from utils.video_preprocess import (
@@ -74,7 +74,7 @@ def draw_action_label(frame, label, confidence, position=None, is_alert: bool = 
     elif is_alert:
         color = (0, 0, 255)
     else:
-        color = (0, 165, 255)  # orange: displayed but below alert threshold
+        color = (255, 0, 0)  # orange: displayed but below alert threshold
 
     if is_normal:
         text = f"{label} ({confidence:.2f})"
@@ -100,7 +100,7 @@ def _apply_gates(
         ok, reason = get_fall_pose_gate().confirms_fall(frame_bgr)
         return ok, f"fall_gate:{reason}"
 
-    if action_key == "shoot_gun" and ENABLE_WEAPON_THREAT_GATE:
+    if action_key == "hold_weapon" and ENABLE_WEAPON_THREAT_GATE:
         ok, reason = get_weapon_threat_gate().confirms_weapon(frame_bgr)
         return ok, f"weapon_gate:{reason}"
 
@@ -197,7 +197,7 @@ def anomaly_model_predict(
         if not action_key:
             continue
 
-        action_cfg = settings["detection"].get(action_key)
+        action_cfg = detection_action_config(settings["detection"], action_key)
         if not action_cfg or not action_cfg.get("enabled"):
             continue
 

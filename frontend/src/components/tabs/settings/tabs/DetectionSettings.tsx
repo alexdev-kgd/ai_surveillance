@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { api, baseURL } from "@api/axios";
+import { DETECTED_ACTION_LABELS } from "@constants/detectedActionLabels.const";
 import type { IActionSetting, ISettings } from "@interfaces/settings.interface";
 
 const defaultSettings: ISettings = {
 	detection: {
 		shoplift: { enabled: true, sensitivity: 0.6, alert_sensitivity: 0.45 },
 		assault: { enabled: true, sensitivity: 0.75, alert_sensitivity: 0.55 },
-		fall_floor: { enabled: true, sensitivity: 0.35, alert_sensitivity: 0.2 },
-		jump: { enabled: false, sensitivity: 0.5, alert_sensitivity: 0.35 },
-		run: { enabled: true, sensitivity: 0.55, alert_sensitivity: 0.4 },
-		shoot_gun: { enabled: true, sensitivity: 0.3, alert_sensitivity: 0.15 },
+		// fall_floor: { enabled: true, sensitivity: 0.35, alert_sensitivity: 0.2 },
+		// jump: { enabled: false, sensitivity: 0.5, alert_sensitivity: 0.35 },
+		// run: { enabled: true, sensitivity: 0.55, alert_sensitivity: 0.4 },
+		hold_weapon: { enabled: true, sensitivity: 0.3, alert_sensitivity: 0.15 },
 	},
 	useObjectDetection: true,
 };
@@ -104,7 +105,7 @@ export const DetectionSettings = () => {
 									updateAction(key, { enabled: e.target.checked })
 								}
 							/>{" "}
-							<strong>{key.replace(/_/g, " ")}</strong>
+							<strong>{DETECTED_ACTION_LABELS[key] ?? key}</strong>
 						</label>
 
 						<label style={{ fontSize: 12, opacity: 0.8 }}>
@@ -162,7 +163,7 @@ export const DetectionSettings = () => {
 			</div>
 
 			{/* YOLO SWITCH */}
-			<div style={{ marginTop: 50 }}>
+			<div style={{ marginTop: 20 }}>
 				<label style={{ display: "block", marginBottom: 0 }}>
 					<input
 						type="checkbox"
@@ -188,7 +189,7 @@ export const DetectionSettings = () => {
 					border: "none",
 					borderRadius: 4,
 					cursor: "pointer",
-					marginTop: 50,
+					marginTop: 20,
 				}}
 			>
 				{saving ? "Сохраняем..." : "Сохранить"}
