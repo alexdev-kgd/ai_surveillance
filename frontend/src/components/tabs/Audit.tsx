@@ -179,8 +179,10 @@ export default function Audit() {
 							<td style={cellStyle}>
 								{new Date(log.created_at).toLocaleString()}
 							</td>
-							<td style={cellStyle}>{log.userId}</td>
-							<td style={cellStyle}>{ROLE_NAMES[log.role] ?? log.role}</td>
+							<td style={cellStyle}>{log.userId ?? "—"}</td>
+							<td style={cellStyle}>
+								{log.role ? (ROLE_NAMES[log.role] ?? log.role) : "—"}
+							</td>
 							<td style={cellStyle}>
 								{AUDIT_ACTION_LABELS[log.action] ?? log.action}
 							</td>

@@ -28,6 +28,7 @@ for r in (
     routers.cameras,
     routers.recording,
     routers.backup,
+    routers.users,
 ):
     app.include_router(r.router)
 

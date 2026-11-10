@@ -17,6 +17,10 @@ ACTION_LABELS = {
     "cameraDeleted": "Камера удалена",
     "cameraEnabled": "Камера включена",
     "cameraDisabled": "Камера выключена",
+    "userListAccess": "Просмотр списка пользователей",
+    "userAdded": "Добавлен пользователь",
+    "userUpdated": "Пользователь изменён",
+    "userDeleted": "Пользователь удалён",
 }
 
 ROLE_LABELS_REVERSE = {v.lower(): k for k, v in ROLE_LABELS.items()}

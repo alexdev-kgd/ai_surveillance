@@ -12,4 +12,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
 	cameraDeleted: "Камера удалена",
 	cameraEnabled: "Камера включена",
 	cameraDisabled: "Камера выключена",
+	userListAccess: "Просмотр списка пользователей",
+	userAdded: "Добавлен пользователь",
+	userUpdated: "Пользователь изменён",
+	userDeleted: "Пользователь удалён",
 };

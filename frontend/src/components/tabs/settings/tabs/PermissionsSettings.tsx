@@ -3,6 +3,7 @@ import { api, baseURL } from "@api/axios";
 import { ROLE_NAMES } from "@constants/roleNames.const";
 import type { IRole } from "@interfaces/role.interface";
 import { PERMISSION_NAMES } from "@constants/permissionNames.const";
+import { UserManagement } from "./UserManagement";
 
 export const PermissionsSettings = () => {
 	const [roles, setRoles] = useState<IRole[]>([]);
@@ -65,55 +66,63 @@ export const PermissionsSettings = () => {
 		}
 	};
 
-	if (loading) return <div>Загрузка настроек...</div>;
-
 	return (
 		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+			<UserManagement />
+
+			<hr style={{ margin: "30px 0" }} />
+
 			<h2 style={{ marginBottom: 20 }}>
 				Управление разрешениями пользователей
 			</h2>
 
-			{roles.map((role) => (
-				<div
-					key={role.name}
-					style={{
-						border: "1px solid #ddd",
-						borderRadius: 6,
-						padding: 12,
-						marginBottom: 16,
-					}}
-				>
-					<strong>{ROLE_NAMES[role.name] || role.name}</strong>
+			{loading ? (
+				<div>Загрузка настроек...</div>
+			) : (
+				<>
+					{roles.map((role) => (
+						<div
+							key={role.name}
+							style={{
+								border: "1px solid #ddd",
+								borderRadius: 6,
+								padding: 12,
+								marginBottom: 16,
+							}}
+						>
+							<strong>{ROLE_NAMES[role.name] || role.name}</strong>
 
-					{allPermissions.map((perm) => (
-						<label key={perm} style={{ display: "block" }}>
-							<input
-								type="checkbox"
-								checked={role.permissions.includes(perm)}
-								onChange={() => togglePermission(role.name, perm)}
-							/>{" "}
-							{PERMISSION_NAMES[perm] || perm}
-						</label>
+							{allPermissions.map((perm) => (
+								<label key={perm} style={{ display: "block" }}>
+									<input
+										type="checkbox"
+										checked={role.permissions.includes(perm)}
+										onChange={() => togglePermission(role.name, perm)}
+									/>{" "}
+									{PERMISSION_NAMES[perm] || perm}
+								</label>
+							))}
+						</div>
 					))}
-				</div>
-			))}
 
-			<button
-				onClick={saveAllRoles}
-				disabled={saving}
-				style={{
-					padding: "8px 16px",
-					backgroundColor: "#007bff",
-					color: "white",
-					border: "none",
-					borderRadius: 4,
-					cursor: "pointer",
-				}}
-			>
-				{saving ? "Сохраняем..." : "Сохранить"}
-			</button>
+					<button
+						onClick={saveAllRoles}
+						disabled={saving}
+						style={{
+							padding: "8px 16px",
+							backgroundColor: "#007bff",
+							color: "white",
+							border: "none",
+							borderRadius: 4,
+							cursor: "pointer",
+						}}
+					>
+						{saving ? "Сохраняем..." : "Сохранить"}
+					</button>
 
-			{message && <div style={{ marginTop: 10 }}>{message}</div>}
+					{message && <div style={{ marginTop: 10 }}>{message}</div>}
+				</>
+			)}
 		</div>
 	);
 };

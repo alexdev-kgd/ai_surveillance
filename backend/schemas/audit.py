@@ -7,8 +7,8 @@ class AuditLogOut(BaseModel):
     action: str
     details: Optional[Any]
     created_at: datetime
-    userId: int
-    role: str
+    userId: Optional[int] = None
+    role: Optional[str] = None
 
 class AuditLogPage(BaseModel):
     items: list[AuditLogOut]
