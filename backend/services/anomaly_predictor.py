@@ -285,7 +285,7 @@ def analyze_with_yolo(
                 frame,
                 label,
                 confidence,
-                position=(x1 + 5, y1 - 30),
+                position=(x1 + 5, y1 - 45),
                 is_alert=is_alert,
             )
 

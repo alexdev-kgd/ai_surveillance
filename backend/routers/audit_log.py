@@ -69,8 +69,8 @@ async def get_audit_logs(
             User.id.label("userId"),
             Role.name.label("role")
         )
-        .join(User, User.id == AuditLog.user_id)
-        .join(Role, Role.id == User.role_id)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .outerjoin(Role, Role.id == User.role_id)
         .where(and_(*filters))
     )
 

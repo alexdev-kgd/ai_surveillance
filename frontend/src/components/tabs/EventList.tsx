@@ -2,6 +2,7 @@ import React from "react";
 import { DETECTED_ACTION_LABELS } from "@constants/detectedActionLabels.const";
 import type { IEvent } from "@interfaces/event.interface";
 import type { ILiveDetectionEvent } from "@interfaces/liveDetectionEvent.interface";
+import { formatDateTime } from "../../utils/formatDateTime";
 
 interface Props {
 	events?: IEvent[];
@@ -45,7 +46,7 @@ export default function EventList({ events = [], liveEvents = [] }: Props) {
 								<td style={cellStyle}>{event.cameraName}</td>
 								<td style={cellStyle}>{event.frame}</td>
 								<td style={cellStyle}>{event.label}</td>
-								<td style={cellStyle}>{event.timeSec.toFixed(2)}s</td>
+								<td style={cellStyle}>{formatDateTime(event.detectedAt)}</td>
 							</tr>
 						))}
 					{!hasLiveEvents &&
@@ -54,9 +55,7 @@ export default function EventList({ events = [], liveEvents = [] }: Props) {
 								<td style={cellStyle}>{event.camera ?? "-"}</td>
 								<td style={cellStyle}>-</td>
 								<td style={cellStyle}>{event.event_type}</td>
-								<td style={cellStyle}>
-									{new Date(event.timestamp).toLocaleTimeString("ru-RU")}
-								</td>
+								<td style={cellStyle}>{formatDateTime(event.timestamp)}</td>
 							</tr>
 						))}
 				</tbody>

@@ -38,7 +38,7 @@ export const Settings = () => {
 				<Tab
 					icon={<PersonIcon />}
 					iconPosition="start"
-					label="Управление разрешениями"
+					label="Управление пользователями"
 					id="tab-1"
 				/>
 				<Tab

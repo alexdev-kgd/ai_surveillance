@@ -1,21 +1,27 @@
-import hashlib
+import logging
 import os
+import smtplib
 from datetime import datetime
+from email.message import EmailMessage
+from email.utils import formataddr
 from typing import Sequence
 
-import requests
 from dotenv import load_dotenv
 
 
 load_dotenv()
 
-RUSENDER_API_URL = os.getenv("RUSENDER_API_URL", "https://api.rusender.ru")
-RUSENDER_API_TOKEN = os.getenv("RUSENDER_API_TOKEN", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZFVzZXIiOjIzMjc2LCJpZEV4dGVybmFsTWFpbEFwaUtleSI6NDE2OCwiaWF0IjoxNzc2OTY4Mzc5fQ.mWjJeoL2SXfOD-BvOJlDed-ezRhTNlkhfuFAI8_pABk")
-RUSENDER_TIMEOUT_SECONDS = float(os.getenv("RUSENDER_TIMEOUT_SECONDS", "10"))
+logger = logging.getLogger(__name__)
 
-EMAIL_FROM = os.getenv("EMAIL_FROM", "<noreply>@ai-surveillance")
-EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "AI Surveillance")
-EMAIL_TO = os.getenv("EMAIL_TO", "alexpetrov248@gmail.com")
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "465"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_TIMEOUT_SECONDS = float(os.getenv("SMTP_TIMEOUT_SECONDS", "10"))
+
+EMAIL_FROM = os.getenv("EMAIL_FROM", "") or SMTP_USER
+EMAIL_FROM_NAME = os.getenv("EMAIL_FROM_NAME", "Видеонаблюдение магазина")
+EMAIL_TO = os.getenv("EMAIL_TO", "")
 
 NOTIFY_INTERVAL = int(os.getenv("NOTIFY_INTERVAL", "60"))
 
@@ -23,69 +29,88 @@ _last_notification_time = datetime.min
 _buffer: list[tuple[datetime, str]] = []
 
 
-def _idempotency_key(events: Sequence[tuple[datetime, str]]) -> str:
-    serialized_events = "\n".join(
-        f"{event_time.isoformat()}|{description}"
-        for event_time, description in events
-    )
-    digest = hashlib.sha256(serialized_events.encode("utf-8")).hexdigest()
-    return f"ai-surveillance-{digest}"
-
-
 def _missing_config() -> list[str]:
     config = {
-        "RUSENDER_API_TOKEN": RUSENDER_API_TOKEN,
+        "SMTP_HOST": SMTP_HOST,
+        "SMTP_USER": SMTP_USER,
+        "SMTP_PASSWORD": SMTP_PASSWORD,
         "EMAIL_FROM": EMAIL_FROM,
         "EMAIL_TO": EMAIL_TO,
     }
     return [name for name, value in config.items() if not value]
 
 
-def send_email_notification(events: Sequence[tuple[datetime, str]]) -> bool:
-    """Send a batch of suspicious events through the RuSender Email API."""
-    if not events:
-        return False
-
-    missing = _missing_config()
-    if missing:
-        print(f"[MAIL ERROR] Missing configuration: {', '.join(missing)}")
-        return False
-
+def _build_message(events: Sequence[tuple[datetime, str]]) -> EmailMessage:
     body_lines = ["Обнаружены следующие подозрительные действия:", ""]
     body_lines.extend(
         f"{event_time.strftime('%H:%M:%S')} – {description}"
         for event_time, description in events
     )
 
-    payload = {
-        "idempotencyKey": _idempotency_key(events),
-        "mail": {
-            "to": {"email": EMAIL_TO},
-            "from": {"email": EMAIL_FROM, "name": EMAIL_FROM_NAME},
-            "subject": "Обнаружена подозрительная активность",
-            "text": "\n".join(body_lines),
-        },
-    }
-    url = (
-        f"{RUSENDER_API_URL.rstrip('/')}"
-        f"/api/v1/external-mails/send"
-    )
+    message = EmailMessage()
+    message["From"] = formataddr((EMAIL_FROM_NAME, EMAIL_FROM), charset="utf-8")
+    message["To"] = EMAIL_TO
+    message["Subject"] = "Обнаружена подозрительная активность"
+    message.set_content("\n".join(body_lines))
+    return message
+
+
+def send_email_notification(events: Sequence[tuple[datetime, str]]) -> bool:
+    """Send a batch of suspicious events through Gmail SMTP_SSL."""
+    print(f"[MAIL] Preparing to send notification for {len(events)} events")
+    if not events:
+        return False
+
+    missing = _missing_config()
+    if missing:
+        print(f"[MAIL ERROR] Missing configuration: {', '.join(missing)}")
+        logger.error("Missing mail configuration: %s", ", ".join(missing))
+        return False
+
+    message = _build_message(events)
+    print(f"[MAIL] Sending SMTP message to {EMAIL_TO} via {SMTP_HOST}:{SMTP_PORT}")
 
     try:
-        response = requests.post(
-            url,
-            headers={"Authorization": f"Bearer {RUSENDER_API_TOKEN}"},
-            json=payload,
-            timeout=RUSENDER_TIMEOUT_SECONDS,
-        )
-        response.raise_for_status()
-        print(f"[MAIL] Notification sent to {EMAIL_TO} via RuSender")
+        with smtplib.SMTP_SSL(
+            SMTP_HOST,
+            SMTP_PORT,
+            timeout=SMTP_TIMEOUT_SECONDS,
+        ) as server:
+            server.login(SMTP_USER, SMTP_PASSWORD.strip())
+            server.send_message(message)
+        print(f"[MAIL] Notification sent to {EMAIL_TO} via SMTP")
+        logger.info("Notification sent to %s via SMTP", EMAIL_TO)
         return True
-    except requests.RequestException as error:
-        status_code = error.response.status_code if error.response is not None else None
-        status = f" (HTTP {status_code})" if status_code is not None else ""
-        print(f"[MAIL ERROR] RuSender request failed{status}: {error}")
+    except smtplib.SMTPAuthenticationError as error:
+        print(f"[MAIL ERROR] SMTP authentication failed: {error}")
+        logger.error("SMTP authentication failed: %s", error)
         return False
+    except smtplib.SMTPServerDisconnected as error:
+        print(
+            "[MAIL ERROR] SMTP connection closed. "
+            "SMTP_USER must be the Gmail address that owns the App Password, "
+            f"and EMAIL_FROM must match it. Current SMTP_USER={SMTP_USER!r}, "
+            f"EMAIL_FROM={EMAIL_FROM!r}. Details: {error}"
+        )
+        logger.error("SMTP connection closed for %s: %s", SMTP_USER, error)
+        return False
+    except smtplib.SMTPException as error:
+        print(f"[MAIL ERROR] SMTP send failed: {error}")
+        logger.error("SMTP send failed: %s", error)
+        return False
+    except OSError as error:
+        print(f"[MAIL ERROR] SMTP network error: {error}")
+        logger.error("SMTP network error: %s", error)
+        return False
+
+
+def test_send_email() -> bool:
+    """Send a real one-off SMTP test message using the current .env settings."""
+    now = datetime.now()
+    print("[MAIL] Running SMTP test_send_email()")
+    return send_email_notification(
+        [(now, "Тестовая проверка SMTP-уведомлений")]
+    )
 
 
 def add_event(event_desc: str) -> None:

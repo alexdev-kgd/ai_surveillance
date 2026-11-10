@@ -15,3 +15,7 @@ class AuditAction(str, Enum):
     CAMERA_DELETED = "cameraDeleted"
     CAMERA_ENABLED = "cameraEnabled"
     CAMERA_DISABLED = "cameraDisabled"
+    USER_LIST_ACCESS = "userListAccess"
+    USER_ADDED = "userAdded"
+    USER_UPDATED = "userUpdated"
+    USER_DELETED = "userDeleted"

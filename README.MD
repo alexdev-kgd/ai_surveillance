@@ -31,15 +31,38 @@ disables cross-origin browser access. Wildcards are rejected.
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### Email notifications (RuSender)
+### Email notifications (Gmail SMTP)
 
 Copy `backend/.env.example` to `backend/.env` and set these values:
 
-- `RUSENDER_API_TOKEN` - API token with the `external_mail.send` permission
-- `EMAIL_FROM` - sender on the verified domain linked to that sending key
+- `SMTP_HOST` - `smtp.gmail.com`
+- `SMTP_PORT` - `465` (SSL)
+- `SMTP_USER` - the Gmail address used to sign in
+- `SMTP_PASSWORD` - a Google App Password, not the ordinary account password
+- `EMAIL_FROM` - same Gmail address as `SMTP_USER` (or an allowed alias)
+- `EMAIL_FROM_NAME` - display name in the `From` header, for example `Видеонаблюдение магазина`
 - `EMAIL_TO` - notification recipient
 
-The local `.env` file is ignored by Git. Do not commit the API token.
+Create an App Password at https://myaccount.google.com/apppasswords (2-Step Verification must be enabled). The local `.env` file is ignored by Git. Do not commit the App Password.
+
+To send a real test message from `backend` with the venv active:
+
+```
+python send_test_email.py
+```
+
+On success the script prints `[MAIL] Notification sent to ... via SMTP` and exits with code 0. On a bad password it prints `[MAIL ERROR] SMTP authentication failed: ...` and exits with code 1. The main detection loop keeps running if mail fails.
+
+### SMS notifications (SMS Aero)
+
+Set these values in `backend/.env`:
+
+- `SMSAERO_EMAIL` - login email from the SMS Aero cabinet
+- `SMSAERO_API_KEY` - API key from https://smsaero.ru/cabinet/settings/apikey/
+- `SMSAERO_PHONE` - recipient number in international digits, for example `79506781834`
+- `SMSAERO_SIGN` - sender name (default `SMS Aero`)
+
+`SMSAERO_TEST_MODE=true` uses the `sms/testsend` endpoint and does not deliver a real message. Do not commit the API key.
 
 ## Model Training
 
