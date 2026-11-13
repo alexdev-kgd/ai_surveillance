@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
 from models.settings import Settings
-from core.config import DEFAULT_SETTINGS, LEGACY_ACTION_ALIASES
+from core.config import DEFAULT_SETTINGS, FRONTEND_LABELS, LEGACY_ACTION_ALIASES
 
 _cached_settings: Dict | None = None
 
@@ -55,3 +55,12 @@ async def load_settings(db: AsyncSession):
 
 def get_settings():
     return _cached_settings or DEFAULT_SETTINGS
+
+
+def get_action_label(key: str) -> str:
+    settings = get_settings() or {}
+    labels = settings.get("actionLabels") or {}
+    custom = labels.get(key)
+    if custom:
+        return custom
+    return FRONTEND_LABELS.get(key, key)

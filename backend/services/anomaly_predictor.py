@@ -10,13 +10,12 @@ from core.config import (
     CLASS_TO_ACTION,
     ENABLE_FALL_POSE_GATE,
     ENABLE_WEAPON_THREAT_GATE,
-    FRONTEND_LABELS,
     STRIDE,
 )
-from models.anomaly_model import class_names, video_model
+from models import anomaly_model
 from models.yolo_detector import yolo_model
 from services.detection_gates import get_fall_pose_gate, get_weapon_threat_gate
-from services.settings import detection_action_config, get_settings
+from services.settings import detection_action_config, get_action_label, get_settings
 from utils.device import device
 from utils.text import TEXT_DEFAULT_POSITION, put_text_ru
 from utils.video_preprocess import (
@@ -33,7 +32,7 @@ _rgb_buffer: List[np.ndarray] = []
 _flow_buffer: List[np.ndarray] = []
 _raw_frame_counter = 0
 
-current_label = FRONTEND_LABELS["normal"]
+current_label = get_action_label("normal")
 current_confidence = 0.0
 current_is_alert = False
 ttl_counter = 0
@@ -68,7 +67,7 @@ def resolve_thresholds(action_cfg: dict) -> Tuple[float, float]:
 
 
 def draw_action_label(frame, label, confidence, position=None, is_alert: bool = False):
-    is_normal = label == FRONTEND_LABELS["normal"]
+    is_normal = label == get_action_label("normal")
     if is_normal:
         color = (0, 255, 0)
     elif is_alert:
@@ -113,6 +112,7 @@ def _apply_gates(
 def anomaly_model_predict(
     frame_bgr: np.ndarray,
     gate_frame_bgr: Optional[np.ndarray] = None,
+    use_crop_model: bool = False,
 ) -> Tuple[str, float, bool]:
     """
     Returns (frontend_label, confidence, is_alert).
@@ -129,7 +129,7 @@ def anomaly_model_predict(
     # Match training SAMPLE_STRIDE: only keep every STRIDE-th frame
     if (_raw_frame_counter - 1) % SAMPLE_STRIDE != 0:
         # Between samples: return persistent state via caller; emit neutral here
-        return FRONTEND_LABELS["normal"], 0.0, False
+        return get_action_label("normal"), 0.0, False
 
     rgb = bgr_to_rgb_uint8(frame_bgr)
 
@@ -156,7 +156,7 @@ def anomaly_model_predict(
     # print(f"len(_rgb_buffer)={len(_rgb_buffer)}, CLIP_LEN={CLIP_LEN}")
     # print(f"{len(_rgb_buffer) < CLIP_LEN} is len(_rgb_buffer) < CLIP_LEN")
     if len(_rgb_buffer) < CLIP_LEN:
-        return FRONTEND_LABELS["normal"], 0.0, False
+        return get_action_label("normal"), 0.0, False
 
     clip_frames = _rgb_buffer[-CLIP_LEN:]
 
@@ -171,13 +171,14 @@ def anomaly_model_predict(
         flow_array=clip_flow,
         device=device,
     )
+    runtime_model, runtime_names = anomaly_model.get_runtime_model(use_crop_model)
 
     with torch.inference_mode():
         if device.type == "cuda":
             with torch.autocast(device_type="cuda", dtype=torch.float16):
-                logits = video_model(rgb_tensor, flow_tensor)
+                logits = runtime_model(rgb_tensor, flow_tensor)
         else:
-            logits = video_model(rgb_tensor, flow_tensor)
+            logits = runtime_model(rgb_tensor, flow_tensor)
         probs = torch.softmax(logits, dim=-1)[0]
 
     topk = torch.topk(probs, min(3, probs.numel()))
@@ -185,16 +186,16 @@ def anomaly_model_predict(
     settings = get_settings()
     if not settings:
         conf = float(probs.max())
-        return FRONTEND_LABELS["normal"], conf, False
+        return get_action_label("normal"), conf, False
 
     for i, conf_t in zip(topk.indices, topk.values):
-        label = class_names[int(i)]
+        label = runtime_names[int(i)]
         confidence = float(conf_t)
         if label == "normal":
             continue
 
-        action_key = CLASS_TO_ACTION.get(label)
-        if not action_key:
+        action_key = CLASS_TO_ACTION.get(label, label)
+        if not action_key or action_key == "normal":
             continue
 
         action_cfg = detection_action_config(settings["detection"], action_key)
@@ -213,9 +214,9 @@ def anomaly_model_predict(
             continue
 
         is_alert = confidence >= alert_th
-        return FRONTEND_LABELS.get(action_key, action_key), confidence, is_alert
+        return get_action_label(action_key), confidence, is_alert
 
-    return FRONTEND_LABELS["normal"], float(probs.max()), False
+    return get_action_label("normal"), float(probs.max()), False
 
 
 def get_persistent_prediction(
@@ -225,7 +226,7 @@ def get_persistent_prediction(
 ) -> Tuple[str, float, bool]:
     global current_label, current_confidence, current_is_alert, ttl_counter
 
-    if new_label != FRONTEND_LABELS["normal"]:
+    if new_label != get_action_label("normal"):
         current_label = new_label
         current_confidence = new_confidence
         current_is_alert = new_is_alert
@@ -234,7 +235,7 @@ def get_persistent_prediction(
         if ttl_counter > 0:
             ttl_counter -= 1
         else:
-            current_label = FRONTEND_LABELS["normal"]
+            current_label = get_action_label("normal")
             current_confidence = new_confidence
             current_is_alert = False
 
@@ -247,11 +248,11 @@ def analyze_with_yolo(
     annotate: bool = True,
 ) -> Dict[str, Any]:
     detections: List[dict] = []
-    best_label = FRONTEND_LABELS["normal"]
+    best_label = get_action_label("normal")
     best_confidence = 0.0
     best_is_alert = False
 
-    yolo_results = yolo_model.predict(frame, conf=0.2, verbose=False)
+    yolo_results = yolo_model.predict(frame, conf=0.7, verbose=False)
 
     for r in yolo_results[0].boxes:
         cls_id = int(r.cls)
@@ -267,6 +268,7 @@ def analyze_with_yolo(
         raw_label, raw_confidence, raw_is_alert = anomaly_model_predict(
             person_crop,
             gate_frame_bgr=person_crop,
+            use_crop_model=True,
         )
 
         label, confidence, is_alert = get_persistent_prediction(
@@ -289,7 +291,7 @@ def analyze_with_yolo(
                 is_alert=is_alert,
             )
 
-            color = (0, 255, 0) if is_normal else ((0, 0, 255) if is_alert else (0, 165, 255))
+            color = (0, 255, 0) if is_normal else ((0, 0, 255) if is_alert else (0, 0, 255))
             cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
 
         detections.append(
@@ -361,7 +363,7 @@ def reset_predictor_state() -> None:
     _rgb_buffer = []
     _flow_buffer = []
     _raw_frame_counter = 0
-    current_label = FRONTEND_LABELS["normal"]
+    current_label = get_action_label("normal")
     current_confidence = 0.0
     current_is_alert = False
     ttl_counter = 0

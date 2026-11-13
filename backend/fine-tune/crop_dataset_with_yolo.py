@@ -412,6 +412,96 @@ def describe_path(path: Path, base: Path) -> str:
         return str(path)
 
 
+def default_crop_args() -> argparse.Namespace:
+    return argparse.Namespace(
+        model=str(DEFAULT_MODEL),
+        confidence=0.25,
+        image_size=640,
+        crop_size=224,
+        margin=0.10,
+        match_iou=0.30,
+        max_missed=5,
+        min_frames=16,
+        device=None,
+        overwrite=False,
+        limit=None,
+    )
+
+
+def crop_person_dataset(
+    input_dir: Path,
+    output_dir: Path,
+    cancel_event=None,
+    progress_callback=None,
+    model: object | None = None,
+) -> dict:
+    """Crop people from a split directory into a matching crop directory."""
+    sys.path.append(str(BACKEND_DIR))
+    from utils.training_runtime import raise_if_cancelled
+
+    input_dir = Path(input_dir).expanduser().resolve()
+    output_dir = Path(output_dir).expanduser().resolve()
+    if not input_dir.is_dir():
+        raise FileNotFoundError(f"Папка исходных видео не найдена: {input_dir}")
+    if input_dir == output_dir:
+        raise ValueError("Папки сцен и YOLO-вырезок должны отличаться")
+
+    args = default_crop_args()
+    videos = collect_videos(input_dir, output_dir)
+    stats = {"queued": len(videos), "processed": 0, "crops_created": 0, "failed": 0}
+    if progress_callback:
+        progress_callback(
+            {
+                "stage": "crop",
+                "current": 0,
+                "total": len(videos),
+                "message": (
+                    "Вырезки с людьми уже подготовлены"
+                    if not videos
+                    else f"Подготовка вырезок с людьми: 0 из {len(videos)}"
+                ),
+            }
+        )
+    if not videos:
+        return stats
+
+    if model is None:
+        os.environ.setdefault("YOLO_AUTOINSTALL", "false")
+        from ultralytics import YOLO
+
+        model = YOLO(args.model, task="detect")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    for index, source in enumerate(videos, start=1):
+        raise_if_cancelled(cancel_event)
+        rel = describe_path(source, input_dir)
+        if progress_callback:
+            progress_callback(
+                {
+                    "stage": "crop",
+                    "current": index - 1,
+                    "total": len(videos),
+                    "message": f"Подготовка вырезок людей: {rel}",
+                }
+            )
+        try:
+            video_result = process_video(model, source, input_dir, output_dir, args)
+            stats["processed"] += 1
+            stats["crops_created"] += video_result.crops_created
+        except Exception:
+            stats["failed"] += 1
+        if progress_callback:
+            progress_callback(
+                {
+                    "stage": "crop",
+                    "current": index,
+                    "total": len(videos),
+                    "message": f"Подготовка вырезок людей: {index} из {len(videos)}",
+                }
+            )
+    return stats
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     input_dir = args.input_dir.expanduser().resolve()

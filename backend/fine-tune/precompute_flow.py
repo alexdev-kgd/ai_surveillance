@@ -3,81 +3,67 @@ Precompute optical flow for the dataset using the same sampling as train/serve.
 
 Sampling: sequential frames every SAMPLE_STRIDE until CLIP_LEN RGB frames,
 then Farneback between consecutive RGB frames → (CLIP_LEN, H, W, 2) after pad.
+
+Existing *_flow.npy files are skipped unless --force is passed.
 """
+import argparse
 import os
 import sys
 
-import numpy as np
-from tqdm import tqdm
-
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from utils.video_preprocess import (
-    CLIP_LEN,
-    FLOW_SUFFIX,
-    FRAME_SIZE,
-    SAMPLE_STRIDE,
-    compute_optical_flow_clip,
-    read_video_strided_rgb,
-)
+from utils.optical_flow_cache import precompute_missing_flow
+from utils.video_preprocess import CLIP_LEN, FRAME_SIZE, SAMPLE_STRIDE
 
 DATASET_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "dataset"))
 
 
-def compute_flow_for_video(video_path: str) -> np.ndarray | None:
-    frames = read_video_strided_rgb(
-        video_path,
-        clip_len=CLIP_LEN,
-        stride=SAMPLE_STRIDE,
-        size=FRAME_SIZE,
+def process_dataset(
+    root: str = DATASET_ROOT,
+    skip_existing: bool = True,
+    train_dir: str | None = None,
+    val_dir: str | None = None,
+) -> None:
+    if train_dir or val_dir:
+        split_dirs = [path for path in (train_dir, val_dir) if path]
+    else:
+        split_dirs = [
+            os.path.join(root, split)
+            for split in ("train", "val")
+            if os.path.isdir(os.path.join(root, split))
+        ]
+
+    stats = precompute_missing_flow(
+        split_dirs,
+        skip_existing=skip_existing,
+        show_progress_bar=True,
     )
-    if len(frames) < 2:
-        return None
-
-    # (T, H, W, 2) float32, last flow padded
-    flow = compute_optical_flow_clip(frames, size=FRAME_SIZE, normalize=True)
-    return flow.astype(np.float16)
-
-
-def process_dataset(root: str = DATASET_ROOT) -> None:
-    total_videos = 0
-    processed = 0
-
-    for split in ["train", "val"]:
-        split_dir = os.path.join(root, split)
-        if not os.path.isdir(split_dir):
-            continue
-
-        for cls in os.listdir(split_dir):
-            cls_dir = os.path.join(split_dir, cls)
-            if not os.path.isdir(cls_dir):
-                continue
-
-            videos = [
-                f
-                for f in os.listdir(cls_dir)
-                if f.lower().endswith((".mp4", ".avi", ".mov", ".mkv"))
-            ]
-
-            for video_file in tqdm(videos, desc=f"{split}/{cls}"):
-                total_videos += 1
-                video_path = os.path.join(cls_dir, video_file)
-                stem, _ = os.path.splitext(video_path)
-                flow_path = stem + FLOW_SUFFIX
-
-                flow = compute_flow_for_video(video_path)
-                if flow is None:
-                    print(f"[WARN] Skipping {video_path} (too short)")
-                    continue
-
-                np.save(flow_path, flow)
-                processed += 1
-
     print("\nDone!")
-    print(f"Total videos: {total_videos}")
-    print(f"Processed: {processed}")
+    print(f"Queued (missing flow): {stats['queued']}")
+    print(f"Processed: {stats['processed']}")
+    print(f"Skipped (too short): {stats['skipped_short']}")
+    print(f"Failed: {stats['failed']}")
     print(f"CLIP_LEN={CLIP_LEN}, STRIDE={SAMPLE_STRIDE}, size={FRAME_SIZE}")
 
 
 if __name__ == "__main__":
-    process_dataset(DATASET_ROOT)
+    parser = argparse.ArgumentParser(description="Precompute optical flow for train/val videos")
+    parser.add_argument(
+        "--root",
+        default=DATASET_ROOT,
+        help="Dataset root that contains train/ and val/ (default: backend/dataset)",
+    )
+    parser.add_argument("--train-dir", default=None, help="Explicit train split directory")
+    parser.add_argument("--val-dir", default=None, help="Explicit val split directory")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Recompute even if a matching *_flow.npy already exists",
+    )
+    args = parser.parse_args()
+    process_dataset(
+        root=args.root,
+        skip_existing=not args.force,
+        train_dir=args.train_dir,
+        val_dir=args.val_dir,
+    )

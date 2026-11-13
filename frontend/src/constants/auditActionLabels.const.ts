@@ -3,6 +3,8 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
 	logout: "Выход из системы",
 	aiSettingsUpdate: "Изменение настроек ИИ модели",
 	aiSettingsAccess: "Просмотр настроек ИИ модели",
+	modelTrainingStart: "Запуск обучения ИИ модели",
+	modelTrainingCancel: "Отмена обучения ИИ модели",
 	permissionSettingsUpdate: "Изменение настроек разрешений пользователей",
 	permissionSettingsAccess: "Просмотр настроек разрешений пользователей",
 	auditAccess: "Просмотр аудита",

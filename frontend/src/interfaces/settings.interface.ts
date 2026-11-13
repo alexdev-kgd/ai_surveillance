@@ -12,4 +12,5 @@ export interface IActionSetting {
 export interface ISettings {
 	detection: Record<string, IActionSetting>;
 	useObjectDetection: boolean;
+	actionLabels?: Record<string, string>;
 }

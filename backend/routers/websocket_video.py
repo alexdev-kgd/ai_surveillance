@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from core.config import FRONTEND_LABELS
+from services.settings import get_action_label
 from services.event import create_event
 from services.mail import add_event
 from services.sms import send_sms_notification
@@ -279,7 +279,7 @@ async def save_suspicious_event(
     is_alert: bool = False,
 ):
     # Only persist / notify when alert threshold is met (stricter than display)
-    if label == FRONTEND_LABELS["normal"] or not is_alert:
+    if label == get_action_label("normal") or not is_alert:
         return
 
     now = time.monotonic()
