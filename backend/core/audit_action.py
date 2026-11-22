@@ -5,6 +5,8 @@ class AuditAction(str, Enum):
     LOGOUT = "logout"
     AI_SETTINGS_UPDATE = "aiSettingsUpdate"
     AI_SETTINGS_ACCESS = "aiSettingsAccess"
+    MODEL_TRAINING_START = "modelTrainingStart"
+    MODEL_TRAINING_CANCEL = "modelTrainingCancel"
     PERMISSION_SETTINGS_UPDATE = "permissionSettingsUpdate"
     PERMISSION_SETTINGS_ACCESS = "permissionSettingsAccess"
     AUDIT_ACCESS = "auditAccess"

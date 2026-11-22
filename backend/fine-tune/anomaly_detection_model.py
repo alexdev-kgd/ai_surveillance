@@ -16,6 +16,7 @@ from tqdm import tqdm
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from utils.device import device
+from utils.training_runtime import raise_if_cancelled
 from utils.metrics import (
     accuracy_from_cm,
     confusion_matrix,
@@ -366,7 +367,7 @@ class TwoStreamModel(nn.Module):
 # Validation
 # ----------------------------
 @torch.no_grad()
-def evaluate(model, loader, criterion, amp_enabled: bool):
+def evaluate(model, loader, criterion, amp_enabled: bool, names: List[str]):
     model.eval()
     total_loss = 0.0
     n_batches = 0
@@ -389,7 +390,7 @@ def evaluate(model, loader, criterion, amp_enabled: bool):
         y_pred.extend(preds.cpu().tolist())
 
     avg_loss = total_loss / max(n_batches, 1)
-    cm = confusion_matrix(y_true, y_pred, num_classes=len(class_names))
+    cm = confusion_matrix(y_true, y_pred, num_classes=len(names))
     acc = accuracy_from_cm(cm)
     f1 = macro_f1(cm)
     stats = per_class_precision_recall_f1(cm)
@@ -409,23 +410,45 @@ def train_model(
     backbone_learning_rate: float = backbone_lr,
     head_learning_rate: float = head_lr,
     class_weights: bool = use_class_weights,
+    train_root: Optional[str] = None,
+    val_root: Optional[str] = None,
+    names: Optional[List[str]] = None,
+    plot_dir: Optional[str] = None,
+    checkpoint_path: Optional[str] = None,
+    best_checkpoint_path: Optional[str] = None,
+    batch_size_val: Optional[int] = None,
+    cancel_event=None,
+    progress_callback=None,
+    dataloader_workers: Optional[int] = None,
+    plot_prefix: str = "train",
 ):
     torch.backends.cudnn.benchmark = True
     amp_enabled = device.type == "cuda"
 
-    data_workers = max(1, min(6, os.cpu_count() or 1))
+    names = list(names) if names else list(class_names)
+    effective_batch_size = batch_size if batch_size_val is None else batch_size_val
+    if dataloader_workers is None:
+        data_workers = max(1, min(6, os.cpu_count() or 1))
+    else:
+        data_workers = max(0, dataloader_workers)
 
     script_dir = os.path.dirname(os.path.abspath(__file__))
     dataset_root = os.path.normpath(os.path.join(script_dir, "..", "dataset"))
-    train_root = os.path.join(dataset_root, "train")
-    val_root = os.path.join(dataset_root, "val")
-    plot_dir = os.path.join(script_dir, PLOT_DIR)
-    ckpt_path = os.path.join(script_dir, "..", CHECKPOINT_NAME)
+    train_root = train_root or os.path.join(dataset_root, "train")
+    val_root = val_root or os.path.join(dataset_root, "val")
+    plot_dir = plot_dir or os.path.join(script_dir, PLOT_DIR)
+    ckpt_path = checkpoint_path or os.path.join(script_dir, "..", CHECKPOINT_NAME)
+    best_path = best_checkpoint_path or os.path.join(
+        script_dir, "..", "suspicious_actions_best.pth"
+    )
 
     print(f"Using device: {device}")
     print(f"Using {data_workers} dataloader workers")
     print(f"CLIP_LEN={clip_len}, STRIDE={STRIDE}, FRAME_SIZE={FRAME_SIZE}")
     print(f"online_flow={online_flow}, plot_metrics={plot_metrics}")
+    print(f"classes={names}")
+    print(f"train_root={train_root}")
+    print(f"val_root={val_root}")
     print(
         f"Regularization: weight_decay={weight_decay_val}, dropout={dropout}, "
         f"label_smoothing={label_smooth}, class_weights={class_weights}, "
@@ -439,11 +462,12 @@ def train_model(
     else:
         print("Early stopping: disabled")
 
+    raise_if_cancelled(cancel_event)
     transform = NormalizeVideo(RGB_MEAN, RGB_STD)
 
     train_dataset = VideoDataset(
         train_root,
-        class_names,
+        names,
         clip_len=clip_len,
         transform=transform,
         mode="train",
@@ -451,7 +475,7 @@ def train_model(
     )
     val_dataset = VideoDataset(
         val_root,
-        class_names,
+        names,
         clip_len=clip_len,
         transform=transform,
         mode="val",
@@ -460,21 +484,21 @@ def train_model(
 
     train_loader = DataLoader(
         train_dataset,
-        batch_size=batch_size,
+        batch_size=effective_batch_size,
         shuffle=True,
         num_workers=data_workers,
-        pin_memory=True,
+        pin_memory=device.type == "cuda",
     )
     val_loader = DataLoader(
         val_dataset,
-        batch_size=batch_size,
+        batch_size=effective_batch_size,
         shuffle=False,
         num_workers=data_workers,
-        pin_memory=True,
+        pin_memory=device.type == "cuda",
     )
 
     model = TwoStreamModel(
-        num_classes=len(class_names),
+        num_classes=len(names),
         fusion=fusion,
         dropout=dropout,
     ).to(device)
@@ -495,7 +519,7 @@ def train_model(
 
     alpha = None
     if class_weights:
-        label_counts = [0] * len(class_names)
+        label_counts = [0] * len(names)
         for _, _, lab in train_dataset.samples:
             label_counts[lab] += 1
         alpha = inverse_frequency_alpha(label_counts).to(device)
@@ -503,7 +527,7 @@ def train_model(
             "Class counts / FocalLoss alpha: "
             + ", ".join(
                 f"{n}={c} (α={a:.3f})"
-                for n, c, a in zip(class_names, label_counts, alpha.tolist())
+                for n, c, a in zip(names, label_counts, alpha.tolist())
             )
         )
 
@@ -521,18 +545,33 @@ def train_model(
         "val_acc": [],
     }
     best_f1 = -1.0
-    best_path = os.path.join(script_dir, "..", "suspicious_actions_best.pth")
     best_val_loss = float("inf")
     epochs_without_improvement = 0
     stopped_early = False
+    train_batches = max(len(train_loader), 1)
+
+    if progress_callback:
+        progress_callback(
+            {
+                "stage": "train",
+                "epoch": 0,
+                "epochs": num_epochs,
+                "batches": train_batches,
+                "total": num_epochs,
+                "current": 0,
+                "message": "Начало обучения...",
+            }
+        )
 
     for epoch in range(num_epochs):
+        raise_if_cancelled(cancel_event)
         model.train()
         total_loss = 0.0
         n_batches = 0
 
         pbar = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs} [train]", leave=False)
         for rgb, flow, labels in pbar:
+            raise_if_cancelled(cancel_event)
             rgb = rgb.to(device)
             flow = flow.to(device)
             labels = labels.to(device)
@@ -552,12 +591,29 @@ def train_model(
             total_loss += float(loss.item())
             n_batches += 1
             pbar.set_postfix(loss=f"{loss.item():.4f}")
+            if progress_callback:
+                progress_callback(
+                    {
+                        "stage": "train",
+                        "epoch": epoch + 1,
+                        "epochs": num_epochs,
+                        "batch": n_batches,
+                        "batches": train_batches,
+                        "current": epoch * train_batches + n_batches,
+                        "total": num_epochs * train_batches,
+                        "message": (
+                            f"Эпоха {epoch + 1} из {num_epochs} "
+                            f"(батч {n_batches}/{train_batches})"
+                        ),
+                    }
+                )
 
         scheduler.step()
         train_loss = total_loss / max(n_batches, 1)
 
+        raise_if_cancelled(cancel_event)
         val_loss, val_acc, val_f1, cm, stats = evaluate(
-            model, val_loader, criterion, amp_enabled
+            model, val_loader, criterion, amp_enabled, names
         )
 
         history["train_loss"].append(train_loss)
@@ -572,25 +628,48 @@ def train_model(
             f"val_acc={val_acc:.4f} | val_macro_f1={val_f1:.4f}"
         )
         print("Per-class precision / recall / F1:")
-        for i, name in enumerate(class_names):
+        for i, name in enumerate(names):
             print(
                 f"  {name:<12}  P={stats['precision'][i]:.4f}  "
                 f"R={stats['recall'][i]:.4f}  F1={stats['f1'][i]:.4f}  "
                 f"n={int(stats['support'][i])}"
             )
-        print(format_classification_report(cm, class_names))
+        print(format_classification_report(cm, names))
+
+        if progress_callback:
+            progress_callback(
+                {
+                    "stage": "train",
+                    "epoch": epoch + 1,
+                    "epochs": num_epochs,
+                    "batch": train_batches,
+                    "batches": train_batches,
+                    "train_loss": train_loss,
+                    "val_loss": val_loss,
+                    "val_acc": val_acc,
+                    "val_f1": val_f1,
+                    "current": (epoch + 1) * train_batches,
+                    "total": num_epochs * train_batches,
+                    "message": (
+                        f"Эпоха {epoch + 1} из {num_epochs}: "
+                        f"val F1={val_f1:.4f}, val acc={val_acc:.4f}"
+                    ),
+                    "history": {key: list(values) for key, values in history.items()},
+                }
+            )
 
         if val_f1 > best_f1:
             best_f1 = val_f1
             torch.save(
                 {
                     "model_state_dict": model.state_dict(),
-                    "class_names": class_names,
+                    "class_names": names,
                     "epoch": epoch + 1,
                     "val_macro_f1": best_f1,
                     "val_acc": val_acc,
                     "clip_len": clip_len,
                     "stride": STRIDE,
+                    "fusion": fusion,
                 },
                 best_path,
             )
@@ -625,7 +704,7 @@ def train_model(
                 val_f1=history["val_f1"],
                 val_acc=history["val_acc"],
                 out_dir=plot_dir,
-                prefix="train",
+                prefix=plot_prefix,
             )
             if epoch == 0:
                 print(f"  Plots → {paths}")
@@ -635,13 +714,15 @@ def train_model(
         gc.collect()
 
     # Final checkpoint (last completed epoch)
+    raise_if_cancelled(cancel_event)
     torch.save(
         {
             "model_state_dict": model.state_dict(),
-            "class_names": class_names,
+            "class_names": names,
             "val_macro_f1": history["val_f1"][-1] if history["val_f1"] else None,
             "clip_len": clip_len,
             "stride": STRIDE,
+            "fusion": fusion,
         },
         ckpt_path,
     )
@@ -660,7 +741,7 @@ def train_model(
             val_f1=history["val_f1"],
             val_acc=history["val_acc"],
             out_dir=plot_dir,
-            prefix="train_final",
+            prefix=f"{plot_prefix}_final",
         )
         print(f"Final plots: {paths}")
 
@@ -739,6 +820,16 @@ def parse_args():
         action="store_true",
         help="Compute optical flow on the fly (matches serve; slower)",
     )
+    parser.add_argument("--train-dir", type=str, default=None)
+    parser.add_argument("--val-dir", type=str, default=None)
+    parser.add_argument(
+        "--classes",
+        type=str,
+        default=None,
+        help="Comma-separated class folder names (default: built-in list)",
+    )
+    parser.add_argument("--plot-dir", type=str, default=None)
+    parser.add_argument("--batch-size", type=int, default=batch_size)
     return parser.parse_args()
 
 
@@ -747,6 +838,11 @@ if __name__ == "__main__":
     env_plot = os.environ.get("PLOT_METRICS", "").strip().lower() in {"1", "true", "yes"}
     plot_metrics = (args.plot or env_plot) and not args.no_plot
 
+    names = (
+        [item.strip() for item in args.classes.split(",") if item.strip()]
+        if args.classes
+        else None
+    )
     train_model(
         fusion=args.fusion,
         plot_metrics=plot_metrics,
@@ -760,4 +856,9 @@ if __name__ == "__main__":
         backbone_learning_rate=args.backbone_lr,
         head_learning_rate=args.head_lr,
         class_weights=not args.no_class_weights,
+        train_root=args.train_dir,
+        val_root=args.val_dir,
+        names=names,
+        plot_dir=args.plot_dir,
+        batch_size_val=args.batch_size,
     )

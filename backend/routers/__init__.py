@@ -11,3 +11,4 @@ from . import cameras
 from . import recording
 from . import backup
 from . import users
+from . import training

@@ -29,6 +29,7 @@ for r in (
     routers.recording,
     routers.backup,
     routers.users,
+    routers.training,
 ):
     app.include_router(r.router)
 

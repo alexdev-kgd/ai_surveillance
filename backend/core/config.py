@@ -36,6 +36,7 @@ CORS_ORIGINS = load_cors_origins()
 STRIDE = 2
 
 ANOMALY_MODEL_PATH = "suspicious_actions_best.pth"
+ANOMALY_YOLO_MODEL_PATH = "suspicious_actions_yolo_best.pth"
 YOLO_MODEL_PATH = "yolov8n.onnx"
 
 # Post-model gates (P3)
@@ -122,9 +123,23 @@ ROLES = {
     "OPERATOR": ["streams:read"],
 }
 
+FRONTEND_LABELS = {
+    "assault": "Нападение",
+    "fall_floor": "Падение",
+    "hit": "Удар",
+    "jump": "Прыжок",
+    "kick": "Удар ногой",
+    "punch": "Удар кулаком",
+    "run": "Бег",
+    "hold_weapon": "Оружие в руках",
+    "shoplift": "Кража",
+    "normal": "Нормальное поведение",
+}
+
 DEFAULT_SETTINGS = {
     "detection": ACTIONS,
     "useObjectDetection": False,
+    "actionLabels": dict(FRONTEND_LABELS),
 }
 
 # Stored settings and older checkpoints used shoot_gun before the class rename.
@@ -143,17 +158,4 @@ CLASS_TO_ACTION = {
     "hold_weapon": "hold_weapon",
     "shoot_gun": "hold_weapon",
     "shoplift": "shoplift",
-}
-
-FRONTEND_LABELS = {
-    "assault": "Нападение",
-    "fall_floor": "Падение",
-    "hit": "Удар",
-    "jump": "Прыжок",
-    "kick": "Удар ногой",
-    "punch": "Удар кулаком",
-    "run": "Бег",
-    "hold_weapon": "Оружие в руках",
-    "shoplift": "Кража",
-    "normal": "Нормальное поведение",
 }

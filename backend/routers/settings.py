@@ -27,6 +27,7 @@ async def get_settings(
         return SettingsSchema(
             detection=ACTIONS,
             useObjectDetection=True,
+            actionLabels={},
         )
 
     await load_settings(db)
@@ -35,6 +36,7 @@ async def get_settings(
     return SettingsSchema(
         detection=settings.settings["detection"],
         useObjectDetection=settings.settings["useObjectDetection"],
+        actionLabels=settings.settings.get("actionLabels") or {},
     )
 
 @router.put("", response_model=SettingsSchema)
@@ -54,6 +56,9 @@ async def update_settings(
     stored = payload.dict()
     detection, _changed = normalize_detection(stored.get("detection") or {})
     stored["detection"] = detection
+    existing_labels = (settings.settings or {}).get("actionLabels") if settings else {}
+    if not stored.get("actionLabels") and existing_labels:
+        stored["actionLabels"] = existing_labels
 
     if settings:
         settings.settings = stored

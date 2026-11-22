@@ -1,8 +1,10 @@
+import os
+
 import torch
 import torch.nn as nn
 from pytorchvideo.models.hub import x3d_m
 
-from core.config import ANOMALY_MODEL_PATH
+from core.config import ANOMALY_MODEL_PATH, ANOMALY_YOLO_MODEL_PATH
 from utils.device import device
 
 
@@ -70,19 +72,51 @@ class TwoStreamModel(nn.Module):
         return self.classifier(self.dropout(x))
 
 
+def _load_two_stream(path: str):
+    loaded = torch.load(path, map_location=device)
+    names = loaded["class_names"]
+    fusion = loaded.get("fusion", "add")
+    model = TwoStreamModel(num_classes=len(names), fusion=fusion)
+    model.load_state_dict(loaded["model_state_dict"], strict=True)
+    model = model.to(device)
+    model.eval()
+    return loaded, names, model
+
+
 # ----------------------------
 # Load checkpoint
 # ----------------------------
-checkpoint = torch.load(ANOMALY_MODEL_PATH, map_location=device)
-
-class_names = checkpoint["class_names"]
+checkpoint, class_names, video_model = _load_two_stream(ANOMALY_MODEL_PATH)
 num_classes = len(class_names)
 
-video_model = TwoStreamModel(num_classes=num_classes, fusion="add")
-video_model.load_state_dict(checkpoint["model_state_dict"], strict=True)
+yolo_checkpoint = None
+yolo_class_names = list(class_names)
+yolo_video_model = None
+if os.path.isfile(ANOMALY_YOLO_MODEL_PATH):
+    yolo_checkpoint, yolo_class_names, yolo_video_model = _load_two_stream(
+        ANOMALY_YOLO_MODEL_PATH
+    )
 
-video_model = video_model.to(device)
-video_model.eval()
+
+def reload_from_checkpoint(path: str | None = None, target: str = "scene") -> None:
+    """Replace the in-memory inference model after a training run."""
+    global checkpoint, class_names, num_classes, video_model
+    global yolo_checkpoint, yolo_class_names, yolo_video_model
+
+    if target == "yolo":
+        ckpt_path = path or ANOMALY_YOLO_MODEL_PATH
+        yolo_checkpoint, yolo_class_names, yolo_video_model = _load_two_stream(ckpt_path)
+        return
+
+    ckpt_path = path or ANOMALY_MODEL_PATH
+    checkpoint, class_names, video_model = _load_two_stream(ckpt_path)
+    num_classes = len(class_names)
+
+
+def get_runtime_model(use_crop_model: bool = False):
+    if use_crop_model and yolo_video_model is not None:
+        return yolo_video_model, yolo_class_names
+    return video_model, class_names
 
 
 # ----------------------------

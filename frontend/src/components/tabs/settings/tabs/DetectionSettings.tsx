@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { api, baseURL } from "@api/axios";
 import { DETECTED_ACTION_LABELS } from "@constants/detectedActionLabels.const";
 import type { IActionSetting, ISettings } from "@interfaces/settings.interface";
+import { TrainingPanel } from "./TrainingPanel";
 
 const defaultSettings: ISettings = {
 	detection: {
@@ -13,6 +14,7 @@ const defaultSettings: ISettings = {
 		hold_weapon: { enabled: true, sensitivity: 0.3, alert_sensitivity: 0.15 },
 	},
 	useObjectDetection: true,
+	actionLabels: {},
 };
 
 export const DetectionSettings = () => {
@@ -83,7 +85,7 @@ export const DetectionSettings = () => {
 	if (loading) return <div>Загрузка настроек...</div>;
 
 	return (
-		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
+		<div style={{ padding: 20, maxWidth: 720, margin: "0 auto" }}>
 			<div>
 				<h2 style={{ marginBottom: 20 }}>Настройки детекции</h2>
 
@@ -105,7 +107,11 @@ export const DetectionSettings = () => {
 									updateAction(key, { enabled: e.target.checked })
 								}
 							/>{" "}
-							<strong>{DETECTED_ACTION_LABELS[key] ?? key}</strong>
+							<strong>
+								{settings.actionLabels?.[key] ??
+									DETECTED_ACTION_LABELS[key] ??
+									key}
+							</strong>
 						</label>
 
 						<label style={{ fontSize: 12, opacity: 0.8 }}>
@@ -174,8 +180,8 @@ export const DetectionSettings = () => {
 				</label>
 
 				<p style={{ fontSize: 13, color: "#666" }}>
-					Если выключено, анализ проводится по всей сцене целиком. Подходит для
-					выявления массовых и контекстных аномалий.
+					Если включено, на кадре сначала ищутся люди, и модель анализирует
+					каждого отдельно. Иначе анализ проводится по всей сцене целиком.
 				</p>
 			</div>
 
@@ -196,6 +202,8 @@ export const DetectionSettings = () => {
 			</button>
 
 			{message && <div style={{ marginTop: 10 }}>{message}</div>}
+
+			<TrainingPanel />
 		</div>
 	);
 };

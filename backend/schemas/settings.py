@@ -15,3 +15,4 @@ class ActionSettings(BaseModel):
 class Settings(BaseModel):
     detection: Dict[str, ActionSettings]
     useObjectDetection: bool = True
+    actionLabels: Dict[str, str] = Field(default_factory=dict)
