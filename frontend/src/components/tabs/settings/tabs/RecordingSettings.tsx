@@ -55,7 +55,16 @@ export const RecordingSettings = () => {
 
 	return (
 		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
-			<h2>Видеозапись</h2>
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
+				Видеозапись
+			</p>
 			<label>
 				<input
 					type="checkbox"
@@ -157,7 +166,19 @@ export const RecordingSettings = () => {
 					/>
 				</label>
 			</fieldset>
-			<h3 style={{ marginTop: 0 }}>Запись по камерам</h3>
+
+			<hr style={{ margin: "30px 0" }} />
+
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
+				Запись по камерам
+			</p>
 			{cameras.map((camera) => (
 				<label key={camera.id} style={{ display: "block", marginBottom: 8 }}>
 					<input

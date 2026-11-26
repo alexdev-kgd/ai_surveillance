@@ -169,7 +169,16 @@ export const CameraSettings = () => {
 
 	return (
 		<div style={{ padding: 20, maxWidth: 600, margin: "0 auto" }}>
-			<h2 style={{ marginBottom: 20 }}>Список камер</h2>
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
+				Список камер
+			</p>
 
 			{cameras.map((camera) => (
 				<div

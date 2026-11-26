@@ -38,12 +38,10 @@ export const BackupSettings = () => {
 			api.get<BackupSchedule>("/backup/schedule"),
 			api.get<BackupSchedule>("/backup/recordings/schedule"),
 		])
-			.then(
-				([scheduleResponse, recordingScheduleResponse]) => {
-					setSchedule(scheduleResponse.data);
-					setRecordingSchedule(recordingScheduleResponse.data);
-				}
-			)
+			.then(([scheduleResponse, recordingScheduleResponse]) => {
+				setSchedule(scheduleResponse.data);
+				setRecordingSchedule(recordingScheduleResponse.data);
+			})
 			.catch(() =>
 				setMessage("Не удалось загрузить настройки резервного копирования.")
 			);
@@ -324,6 +322,8 @@ export const BackupSettings = () => {
 				</button>
 			</section>
 
+			<hr style={{ margin: "30px 0" }} />
+
 			<p
 				id="recording-backup-title"
 				style={{
@@ -471,7 +471,6 @@ export const BackupSettings = () => {
 				) : (
 					<p>Загрузка расписания...</p>
 				)}
-
 			</section>
 
 			{message && (

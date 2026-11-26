@@ -164,7 +164,16 @@ export const UserManagement = () => {
 
 	return (
 		<>
-			<h2 style={{ marginBottom: 20 }}>Список пользователей</h2>
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
+				Список пользователей
+			</p>
 			{listError && <div role="alert">{listError}</div>}
 
 			{users.map((account) => {
@@ -275,7 +284,16 @@ export const UserManagement = () => {
 
 			<form onSubmit={addUser} autoComplete="off">
 				<Stack spacing={2} width={300}>
-					<h3>Добавить пользователя</h3>
+					<p
+						style={{
+							marginTop: 0,
+							marginBottom: 10,
+							fontSize: 18,
+							fontWeight: "bold",
+						}}
+					>
+						Добавить пользователя
+					</p>
 					<TextField
 						label="Логин"
 						value={login}

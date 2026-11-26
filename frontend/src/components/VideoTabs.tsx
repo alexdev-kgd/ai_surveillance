@@ -52,6 +52,7 @@ export default function VideoTabs({ setResult, result, events }: Props) {
 					onChange={handleChange}
 					aria-label="video tabs"
 					centered
+					sx={{ "& .MuiTab-root": { fontFamily: "Arial, sans-serif" } }}
 				>
 					<Tab
 						icon={<CloudUploadIcon />}

@@ -27,7 +27,16 @@ export default function AddCameraForm({ onAdded }: Props) {
 
 	return (
 		<Stack spacing={2} width={300}>
-			<h3>Добавить IP камеру</h3>
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
+				Добавить IP камеру
+			</p>
 
 			<TextField
 				label="Название камеры"

@@ -72,9 +72,16 @@ export const PermissionsSettings = () => {
 
 			<hr style={{ margin: "30px 0" }} />
 
-			<h2 style={{ marginBottom: 20 }}>
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
 				Управление разрешениями пользователей
-			</h2>
+			</p>
 
 			{loading ? (
 				<div>Загрузка настроек...</div>

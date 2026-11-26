@@ -87,7 +87,16 @@ export const DetectionSettings = () => {
 	return (
 		<div style={{ padding: 20, maxWidth: 720, margin: "0 auto" }}>
 			<div>
-				<h2 style={{ marginBottom: 20 }}>Настройки детекции</h2>
+				<p
+					style={{
+						marginTop: 0,
+						marginBottom: 10,
+						fontSize: 18,
+						fontWeight: "bold",
+					}}
+				>
+					Настройки детекции
+				</p>
 
 				{Object.entries(settings.detection).map(([key, action]) => (
 					<div

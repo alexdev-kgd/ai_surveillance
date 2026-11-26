@@ -23,7 +23,7 @@ from services.recording import record_frame, close_camera_recording
 
 router = APIRouter(tags=["Video Stream"])
 
-EVENT_LOG_COOLDOWN_SECONDS = 0.5
+EVENT_LOG_COOLDOWN_SECONDS = 2
 
 
 def decode_websocket_frame(message: dict) -> np.ndarray | None:

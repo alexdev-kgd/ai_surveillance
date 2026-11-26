@@ -28,6 +28,7 @@ export const Settings = () => {
 				aria-label="settings tabs"
 				variant="scrollable"
 				scrollButtons="auto"
+				sx={{ "& .MuiTab-root": { fontFamily: "Arial, sans-serif" } }}
 			>
 				<Tab
 					icon={<HubIcon />}
@@ -47,8 +48,18 @@ export const Settings = () => {
 					label="Управление камерами"
 					id="tab-2"
 				/>
-				<Tab icon={<BackupIcon />} iconPosition="start" label="Резервное копирование" id="tab-3" />
-				<Tab icon={<FiberManualRecordIcon />} iconPosition="start" label="Видеозапись" id="tab-4" />
+				<Tab
+					icon={<BackupIcon />}
+					iconPosition="start"
+					label="Резервное копирование"
+					id="tab-3"
+				/>
+				<Tab
+					icon={<FiberManualRecordIcon />}
+					iconPosition="start"
+					label="Видеозапись"
+					id="tab-4"
+				/>
 			</Tabs>
 
 			<CustomTabPanel value={tabValue} index={0}>

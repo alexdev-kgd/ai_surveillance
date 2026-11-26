@@ -308,7 +308,16 @@ export const TrainingPanel = () => {
 					marginBottom: 24,
 				}}
 			/>
-			<h2 style={{ marginBottom: 8 }}>Обучение модели</h2>
+			<p
+				style={{
+					marginTop: 0,
+					marginBottom: 10,
+					fontSize: 18,
+					fontWeight: "bold",
+				}}
+			>
+				Обучение модели
+			</p>
 			<p
 				style={{ fontSize: 13, color: "#666", marginTop: 0, marginBottom: 12 }}
 			>
@@ -316,7 +325,7 @@ export const TrainingPanel = () => {
 				Каждая папка - отдельный класс.
 			</p>
 
-			<h3 style={{ marginBottom: 8 }}>Полная сцена</h3>
+			<h3 style={{ marginBottom: 8, fontWeight: "bold" }}>Полная сцена</h3>
 			<label style={{ display: "block", marginBottom: 0 }}>
 				<input
 					type="checkbox"
@@ -356,7 +365,9 @@ export const TrainingPanel = () => {
 				sx={{ marginBottom: "20px" }}
 			/>
 
-			<h3 style={{ marginBottom: 8 }}>Вырезки людей (YOLO)</h3>
+			<h3 style={{ marginBottom: 8, fontWeight: "bold" }}>
+				Вырезки людей (YOLO)
+			</h3>
 			<label style={{ display: "block", marginBottom: 0 }}>
 				<input
 					type="checkbox"
@@ -425,7 +436,7 @@ export const TrainingPanel = () => {
 				sx={{ marginBottom: "20px" }}
 			/>
 
-			<h3 style={{ marginBottom: 8 }}>Классы действий</h3>
+			<h3 style={{ marginBottom: 8, fontWeight: "bold" }}>Классы действий</h3>
 			{scanLoading && (
 				<div style={{ fontSize: 13, marginBottom: 8 }}>
 					Чтение папок выборок...
@@ -545,7 +556,7 @@ export const TrainingPanel = () => {
 						sx={{ marginBottom: "12px" }}
 					/>
 					<TextField
-						label="Размер батча"
+						label="Размер пакета (Batch size)"
 						type="number"
 						size="small"
 						fullWidth
@@ -556,7 +567,7 @@ export const TrainingPanel = () => {
 						sx={{ marginBottom: "12px" }}
 					/>
 					<TextField
-						label="Регуляризация (weight decay)"
+						label="Регуляризация (Weight decay)"
 						size="small"
 						fullWidth
 						disabled={running}
@@ -565,7 +576,7 @@ export const TrainingPanel = () => {
 						sx={{ marginBottom: "12px" }}
 					/>
 					<TextField
-						label="Dropout"
+						label="Уровень прореживания (Dropout)"
 						size="small"
 						fullWidth
 						disabled={running}
